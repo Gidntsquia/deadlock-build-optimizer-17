@@ -10,10 +10,10 @@ export function Footer({ meta, buildSetHash }: { meta: MetaSnapshot; buildSetHas
   const fetched = meta.fetchedAt.replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
   const pw = DEFAULT_PARAMS.phaseWeights;
   return (
-    <footer className="footer card" data-testid="footer">
+    <footer className="footer" data-testid="footer">
       <p>
-        Aggregate data from the Deadlock API: {meta.analytics.matchMode.replace(/,/g, ', ')} {meta.analytics.gameMode} matches, average badge {meta.analytics.minAverageBadge} or higher, since the {day(w.minUnixTimestamp)} patch ({w.days.toFixed(1)} days). Snapshot fetched {fetched}.
-        The app reads only that snapshot, so it works offline.
+        Aggregate data from the Deadlock API: {meta.analytics.matchMode.replace(/,/g, ', ')} {meta.analytics.gameMode} matches, average badge {meta.analytics.minAverageBadge} or higher, since the {day(w.minUnixTimestamp)} patch ({w.days.toFixed(1)} days). Snapshot fetched {fetched}. The app reads
+        only that snapshot, so it works offline.
       </p>
       <p>
         Generator {GENERATOR_VERSION}

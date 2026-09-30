@@ -108,25 +108,29 @@ export default function App() {
 
   if (loadError) {
     return (
-      <div className="app">
-        <div className="state error" role="alert" data-testid="load-error">
-          <strong>The data snapshots could not be loaded.</strong>
-          {loadError}
-          <br />
-          Run <code>npm run fetch-data</code> once (it needs a network connection), then reload.
+      <main className="app">
+        <div className="window-body">
+          <div className="state error" role="alert" data-testid="load-error">
+            <strong>The data snapshots could not be loaded.</strong>
+            {loadError}
+            <br />
+            Run <code>npm run fetch-data</code> once (it needs a network connection), then reload.
+          </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (!app || !ui) {
     return (
-      <div className="app">
-        <div className="state" role="status" data-testid="loading">
-          <div className="spinner" />
-          Loading the data snapshot…
+      <main className="app">
+        <div className="window-body">
+          <div className="state" role="status" data-testid="loading">
+            <div className="spinner" />
+            Loading the data snapshot…
+          </div>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -156,21 +160,9 @@ export default function App() {
 
       <main className="app">
         <ErrorBoundary key={heroId}>
-          {heroError && (
-            <div className="state error" role="alert" data-testid="hero-error">
-              <strong>Could not build {hero?.name ?? 'this hero'}.</strong>
-              {heroError}
-            </div>
-          )}
-          {!fresh && !heroError && (
-            <div className="state" role="status" data-testid="generating">
-              <div className="spinner" />
-              Generating builds for {hero?.name}…
-            </div>
-          )}
           {fresh && build && (
-            <>
-              <section className="card hero-head" data-testid="hero-head">
+            <div className="window-head">
+              <section className="hero-head" data-testid="hero-head">
                 <Img className="portrait" src={heroPortrait(app.manifest, hero)} alt="" size={64} fallback={fresh.set.heroName} />
                 <div style={{ minWidth: 0 }}>
                   <h1>{fresh.set.heroName}</h1>
@@ -184,52 +176,57 @@ export default function App() {
                 {fresh.set.builds.map((b, i) => {
                   const a = fresh.report?.builds.find((x) => x.buildId === b.id);
                   return (
-                    <button
-                      key={b.id}
-                      id={`build-tab-${i}`}
-                      type="button"
-                      role="tab"
-                      className="tab"
-                      aria-selected={i === buildIdx}
-                      aria-controls="build-panel"
-                      tabIndex={i === buildIdx ? 0 : -1}
-                      onClick={() => setBuildIdx(i)}
-                      onKeyDown={onTabKey}
-                      data-testid="build-tab"
-                      data-build={b.id}
-                    >
+                    <button key={b.id} id={`build-tab-${i}`} type="button" role="tab" className="tab" aria-selected={i === buildIdx} aria-controls="build-panel" tabIndex={i === buildIdx ? 0 : -1} onClick={() => setBuildIdx(i)} onKeyDown={onTabKey} data-testid="build-tab" data-build={b.id}>
                       <span className="tab-name">{b.name}</span>
                       <span className="tab-sub">{a ? `${a.agreementPct.toFixed(0)}% agreement` : `${(b.totalCost / 1000).toFixed(1)}k souls`}</span>
                     </button>
                   );
                 })}
               </div>
-
-              <div id="build-panel" role="tabpanel" aria-labelledby={`build-tab-${buildIdx}`} style={{ display: 'flex', flexDirection: 'column', gap: 16 }} data-testid="build-panel" data-build={build.id}>
-                <BuildSummary build={build} budget={fresh.set.budget} agreement={agreement} sample={sample} />
-                {fresh.insight && annotation && <InsightCard insight={fresh.insight} annotation={annotation} build={build} heroName={fresh.set.heroName} />}
-                <section className="card" aria-label="Buy order">
-                  <h2 className="section-title">Buy order</h2>
-                  <p className="section-note">
-                    Tap an item for its details.{' '}
-                    {fresh.report ? 'Badges show whether Zergggy treats the item as core (bought in at least 30% of his sampled games).' : `No validation data for ${fresh.set.heroName}: the reference player's data covers Infernus only.`}
-                  </p>
-                  <BuyList build={build} agreement={agreement} sample={sample} insight={fresh.insight} annotation={annotation} />
-                </section>
-                <AbilityOrder plan={build.abilityPlan} kit={fresh.kit} />
-              </div>
-
-              {fresh.report ? (
-                <ValidationPanel report={fresh.report} builds={fresh.set.builds} selectedId={build.id} heroName={fresh.set.heroName} />
-              ) : (
-                <section className="card" data-testid="validation-panel" aria-label="Validation report">
-                  <h2 className="section-title">Validation</h2>
-                  <p className="fine">Validation against the reference player covers Infernus only. Pick Infernus to see core / not-core badges and agreement percentages.</p>
-                </section>
-              )}
-            </>
+            </div>
           )}
-          <Footer meta={app.shared.meta} buildSetHash={buildSetHash} />
+          <div className="window-body">
+            {heroError && (
+              <div className="state error" role="alert" data-testid="hero-error">
+                <strong>Could not build {hero?.name ?? 'this hero'}.</strong>
+                {heroError}
+              </div>
+            )}
+            {!fresh && !heroError && (
+              <div className="state" role="status" data-testid="generating">
+                <div className="spinner" />
+                Generating builds for {hero?.name}…
+              </div>
+            )}
+            {fresh && build && (
+              <>
+                <div id="build-panel" role="tabpanel" aria-labelledby={`build-tab-${buildIdx}`} className="build-panel" data-testid="build-panel" data-build={build.id}>
+                  <BuildSummary build={build} budget={fresh.set.budget} agreement={agreement} sample={sample} />
+                  {fresh.insight && annotation && <InsightCard insight={fresh.insight} annotation={annotation} build={build} heroName={fresh.set.heroName} />}
+                  <section className="buy-order" aria-label="Buy order">
+                    <h2 className="section-heading">Buy order</h2>
+                    <p className="section-note">Tap an item for its details. {fresh.report ? 'Badges show whether Zergggy treats the item as core (bought in at least 30% of his sampled games).' : `No validation data for ${fresh.set.heroName}: the reference player's data covers Infernus only.`}</p>
+                    <BuyList build={build} agreement={agreement} sample={sample} insight={fresh.insight} annotation={annotation} />
+                  </section>
+                  <AbilityOrder plan={build.abilityPlan} kit={fresh.kit} />
+                </div>
+
+                {fresh.report ? (
+                  <ValidationPanel report={fresh.report} builds={fresh.set.builds} selectedId={build.id} heroName={fresh.set.heroName} />
+                ) : (
+                  <section className="panel slate" data-testid="validation-panel" aria-label="Validation report">
+                    <div className="panel-bar">
+                      <h2>Validation</h2>
+                    </div>
+                    <div className="panel-body">
+                      <p className="fine">Validation against the reference player covers Infernus only. Pick Infernus to see core / not-core badges and agreement percentages.</p>
+                    </div>
+                  </section>
+                )}
+              </>
+            )}
+            <Footer meta={app.shared.meta} buildSetHash={buildSetHash} />
+          </div>
         </ErrorBoundary>
       </main>
 

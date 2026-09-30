@@ -4,7 +4,7 @@ A mobile-first web app that builds item lists for any Deadlock hero from real ag
 
 Infernus is the default hero and the only one tuned and validated. The other 37 active heroes generate and render from the same code, but nothing was tuned for them.
 
-The app is a static site (React 18, Vite, TypeScript). It has no backend, database, login or paid service. It reads JSON snapshots that `npm run fetch-data` writes from the public [Deadlock API](https://api.deadlock-api.com), so after one fetch it works offline.
+The app is a static site (React 18, Vite, TypeScript). It has no backend, database, login or paid service. It reads JSON snapshots that `npm run fetch-data` writes from the public [Deadlock API](https://api.deadlock-api.com), so after one fetch it works offline. The look follows the in-game build screen: a teal window header, a parchment body, paper item cards and a navy ability chart. Text is set in Figtree, bundled with the app (`@fontsource-variable/figtree`), so no font is loaded from the network.
 
 ## Run it
 
@@ -40,13 +40,13 @@ To refresh the live data: run `npm run fetch-data`, commit `public/data`, and pu
 - **Hero picker** (top bar): all active heroes, searchable. The hero is kept in the address (`#hero=<id>`), so a link opens that hero.
 - **Build tabs**: Gun Damage, Spirit & Burn, Hybrid.
 - **Summary**: build name, total souls, and (Infernus) the agreement % with the reference player.
-- **Buy list**: grouped early / mid / late. Each row has the shop image, name, tier and slot colour, its price, the running soul total, and a core / not-core badge (Infernus). Components that the build buys early and later upgrades are listed as their own purchases, because you really spend those souls.
-- **Ability order**: 16 points in order, each marked "Unlock" or "Upgrade 1–3", with the four real ability names. Below it, one card per ability with its upgrade text.
+- **Buy list**: grouped early / mid / late, drawn as cards like the in-game build screen. Each card has the item art, a roman-numeral tier tag in the top corner (purple spirit, green vitality, orange weapon), the name on a band, the price, the running soul total, and a core / not-core badge (Infernus). A light band means a core item (or no validation data for that hero); a dark band means not core. A dashed outline marks a stepping stone: a component the build buys early and later upgrades, listed as its own purchase because you really spend those souls. Active items carry an ACTIVE chip, and the "~5m" chip is when you would reach the purchase at your own pace.
+- **Ability order**: the in-game "Ability Point Order" chart. One row per ability (icon at the left, rows in ability-slot order), one column per point, 1 to 16, read left to right. A purple bolt marks the point that unlocks the ability; a diamond numbered 1, 2 or 3 marks that upgrade tier. Points after the recorded sequences end have a dashed outline. Below the chart, one card per ability lists its unlock and upgrade points and what the upgrades do.
 - **Your pace**: insight from your own match history (see "Personalization").
 - **Validation**: how well the generator did against the reference player (see "Validation").
 - **Item card** (tap any item anywhere, including the chips for "Built from" and "Upgrades into"): shop image, cost, tier, slot type, stat lines, and passive / active text, all from the assets data. On a phone it is a bottom sheet; on a desktop it is centered.
 
-Layout: phone first (checked at 390×844, 360 and 320 wide), tap targets at least 44 px, and on wide screens a centered 560 px column.
+Layout: phone first (checked at 390×844, 360 and 320 wide), tap targets at least 40 px, and on wide screens a centered 600 px column.
 
 ## Data pipeline
 
@@ -298,6 +298,7 @@ I built this without being able to ask, so these are the decisions I made. Each 
 14. **One inline tooltip icon is missing.** One image referenced in an item's text returns 404 at the source. The fetch script records it and the app leaves the icon out, so the page never asks the network for it.
 15. **Images are copied locally** (405 files), so the app makes no request to any other host.
 16. **Published as a public GitHub Pages site.** GitHub Pages on a free plan needs a public repository, so the source and the site are both public. They carry the same snapshot as a local run, including your match rows for account 267836488 (`player/match-history.json`) and the reference player's 30 matches. The public Deadlock API returns the same rows for those accounts.
+17. **The ability chart numbers the upgrades 1, 2, 3.** The in-game chart puts 1, 2 and 5 on its upgrade chips. The snapshot has no ability-point cost data, so the app shows the upgrade tier instead. Switching the labels to 1 / 2 / 5 is a small change in `src/components/AbilityOrder.tsx`.
 
 ## Project layout
 
@@ -313,6 +314,7 @@ src/generator/             the generator: evidence, item model, power model, bui
 src/validation/            core set and agreement; the only code that reads the reference snapshot
 src/personalization/       the "Your pace" numbers and per-purchase estimates
 src/data/                  snapshot loading and assets helpers (image paths, text cleanup, stat lines)
-src/components/            UI: hero picker, buy list, ability order, item card, validation panel
+src/components/            UI: hero picker, buy list (item cards), ability order chart, item card, validation panel
+src/styles.css             the whole look: colour tokens, parchment and paper textures, cards, chart
 public/data/               the snapshots (written by fetch-data, read by the app)
 ```

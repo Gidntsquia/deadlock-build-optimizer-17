@@ -47,51 +47,53 @@ export function ValidationPanel({ report, builds, selectedId, heroName }: Props)
   };
 
   return (
-    <section className="card" data-testid="validation-panel" aria-label="Validation report">
-      <h2 className="section-title">Validation: how well the generator did</h2>
-      <p className="section-note">
-        After the builds are generated from aggregate data alone, they are compared with what top player Zergggy actually bought on {heroName}. His games are a check on the result, not a source for it: the generator never reads them.
-      </p>
-      <p className="fine">
-        Reference set: his {report.matches} most recent ranked/unranked {heroName} games ({report.wins} wins). An item is <b>core</b> when it appears in at least {Math.round(report.threshold * 100)}% of those games (wins count {report.winWeight}×). Items bought less often are
-        experiments and are left out: {report.experimentCount} of them here, {report.coreItemIds.length} core items remain.
-      </p>
-      <div className="agree-rows" style={{ marginTop: 14 }}>
-        {report.builds.map((a) => {
-          const b = builds.find((x) => x.id === a.buildId);
-          return (
-            <div className="agree-row" key={a.buildId} data-testid="agreement-row" data-build={a.buildId}>
-              <span className="agree-name">
-                {b?.name ?? a.buildId}
-                {a.buildId === selectedId ? ' (shown)' : ''}
-              </span>
-              <span className="agree-pct" data-testid="agreement-pct-row">
-                {a.agreementPct.toFixed(1)}%
-              </span>
-              <span className="meter" aria-hidden="true">
-                <span style={{ width: `${a.agreementPct}%` }} />
-              </span>
-              <span className="agree-detail">
-                item overlap {pct(a.overlap)} (precision {pct(a.precision)}, recall {pct(a.recall)}) · buy order {a.orderConcordance === null ? 'n/a' : pct(a.orderConcordance)}
-              </span>
-            </div>
-          );
-        })}
+    <section className="panel slate" data-testid="validation-panel" aria-label="Validation report">
+      <div className="panel-bar">
+        <h2>Validation: how well the generator did</h2>
       </div>
-      <p className="fine" style={{ marginTop: 12 }}>
-        Agreement = {Math.round(report.overlapWeight * 100)}% item overlap + {Math.round(report.orderWeight * 100)}% buy-order match for the items both lists share. Nothing in this panel feeds back into the generator.
-      </p>
-      <button type="button" className="btn block" onClick={() => setShowCore((v) => !v)} aria-expanded={showCore} data-testid="toggle-core">
-        {showCore ? 'Hide' : 'Show'} the {report.core.core.length} core items
-      </button>
-      {showCore && <ul className="core-rows">{report.core.core.map((u) => row(u, true))}</ul>}
-      <button type="button" className="btn block" onClick={() => setShowExp((v) => !v)} aria-expanded={showExp} style={{ marginTop: 8 }} data-testid="toggle-experiments">
-        {showExp ? 'Hide' : 'Show'} the {report.core.experiments.length} excluded experiments
-      </button>
-      {showExp && <ul className="core-rows">{report.core.experiments.map((u) => row(u, false))}</ul>}
-      <p className="fine" style={{ marginTop: 12 }}>
-        Reference games are real matchmaking games only (ranked or unranked; no private lobbies or bot games). His data was fetched separately and is read only by this validation step.
-      </p>
+      <div className="panel-body">
+        <p className="lead">After the builds are generated from aggregate data alone, they are compared with what top player Zergggy actually bought on {heroName}. His games are a check on the result, not a source for it: the generator never reads them.</p>
+        <p className="fine">
+          Reference set: his {report.matches} most recent ranked/unranked {heroName} games ({report.wins} wins). An item is <b>core</b> when it appears in at least {Math.round(report.threshold * 100)}% of those games (wins count {report.winWeight}×). Items bought less often are experiments and are
+          left out: {report.experimentCount} of them here, {report.coreItemIds.length} core items remain.
+        </p>
+        <div className="agree-rows" style={{ marginTop: 14 }}>
+          {report.builds.map((a) => {
+            const b = builds.find((x) => x.id === a.buildId);
+            return (
+              <div className="agree-row" key={a.buildId} data-testid="agreement-row" data-build={a.buildId}>
+                <span className="agree-name">
+                  {b?.name ?? a.buildId}
+                  {a.buildId === selectedId ? ' (shown)' : ''}
+                </span>
+                <span className="agree-pct" data-testid="agreement-pct-row">
+                  {a.agreementPct.toFixed(1)}%
+                </span>
+                <span className="meter" aria-hidden="true">
+                  <span style={{ width: `${a.agreementPct}%` }} />
+                </span>
+                <span className="agree-detail">
+                  item overlap {pct(a.overlap)} (precision {pct(a.precision)}, recall {pct(a.recall)}) · buy order {a.orderConcordance === null ? 'n/a' : pct(a.orderConcordance)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <p className="fine" style={{ marginTop: 12 }}>
+          Agreement = {Math.round(report.overlapWeight * 100)}% item overlap + {Math.round(report.orderWeight * 100)}% buy-order match for the items both lists share. Nothing in this panel feeds back into the generator.
+        </p>
+        <button type="button" className="btn block" onClick={() => setShowCore((v) => !v)} aria-expanded={showCore} data-testid="toggle-core">
+          {showCore ? 'Hide' : 'Show'} the {report.core.core.length} core items
+        </button>
+        {showCore && <ul className="core-rows">{report.core.core.map((u) => row(u, true))}</ul>}
+        <button type="button" className="btn block" onClick={() => setShowExp((v) => !v)} aria-expanded={showExp} style={{ marginTop: 8 }} data-testid="toggle-experiments">
+          {showExp ? 'Hide' : 'Show'} the {report.core.experiments.length} excluded experiments
+        </button>
+        {showExp && <ul className="core-rows">{report.core.experiments.map((u) => row(u, false))}</ul>}
+        <p className="fine" style={{ marginTop: 12 }}>
+          Reference games are real matchmaking games only (ranked or unranked; no private lobbies or bot games). His data was fetched separately and is read only by this validation step.
+        </p>
+      </div>
     </section>
   );
 }

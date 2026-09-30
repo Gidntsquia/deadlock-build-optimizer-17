@@ -246,6 +246,8 @@ const inPage = {
     const visible = (el) => {
       const cs = getComputedStyle(el);
       if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+      // screen-reader-only text is clipped to a 1px box on purpose; nobody sees it, so it cannot be cut off
+      if (el.closest('.visually-hidden')) return false;
       const r = el.getBoundingClientRect();
       return r.width > 0 && r.height > 0;
     };

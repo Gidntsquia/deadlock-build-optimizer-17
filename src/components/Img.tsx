@@ -7,12 +7,14 @@ interface ImgProps {
   className?: string;
   /** shown when the image is missing; first letters of the name by default */
   fallback?: string;
+  /** size comes from the stylesheet (width/height attributes only reserve the aspect ratio) */
+  fluid?: boolean;
 }
 
-/** Fixed-size image from the local snapshot; a neutral tile with initials when it is missing. */
-export function Img({ src, alt, size, className, fallback }: ImgProps) {
+/** Image from the local snapshot; a neutral tile with initials when it is missing. Fixed size unless `fluid`. */
+export function Img({ src, alt, size, className, fallback, fluid }: ImgProps) {
   const [failed, setFailed] = useState(false);
-  const style = { width: size, height: size };
+  const style = fluid ? undefined : { width: size, height: size };
   if (!src || failed) {
     return (
       <span className={`img-fallback ${className ?? ''}`} style={style} role="img" aria-label={alt}>

@@ -12,7 +12,11 @@ export function CoreBadge({ badge, sample }: { badge: ItemBadge; sample: number 
   const core = badge.status === 'core';
   return (
     <span className={`pill ${core ? 'core' : 'notcore'}`} title={badgeSentence(badge, sample)} aria-label={badgeSentence(badge, sample)} data-testid="core-badge" data-status={badge.status}>
-      {core ? 'Core' : 'Not core'} · {badge.matches}/{sample}
+      <span className="pill-k">{core ? 'Core' : 'Not core'}</span>
+      <span className="pill-sep"> · </span>
+      <span className="pill-n">
+        {badge.matches}/{sample}
+      </span>
     </span>
   );
 }
