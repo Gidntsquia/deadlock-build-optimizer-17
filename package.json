@@ -1,0 +1,35 @@
+{
+  "name": "deadlock-build-optimizer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Mobile-first Deadlock item build generator driven by aggregate Deadlock API data.",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "fetch-data": "node scripts/fetch-data.mjs",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "generate": "tsx scripts/generate.ts",
+    "validate": "tsx scripts/validate.ts",
+    "check": "tsx scripts/check.ts",
+    "e2e": "node scripts/e2e.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^6.1.1",
+    "playwright-core": "^1.63.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.1"
+  }
+}
