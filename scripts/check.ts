@@ -138,13 +138,6 @@ await check('validation player snapshot: >= 20 real matches with purchases', () 
   return `${v.matches.length} matches (${wins} won, modes ${[...new Set(v.matches.map((m) => m.match_mode))].sort().join('/')}), ${purchases} purchase records, match list has ${history.candidateMatches} candidate Infernus matchmaking games`;
 });
 
-await check('personalization snapshot (account 267836488)', () => {
-  const h = readJson<{ account_id: number; rows: { game_mode: number; match_mode: number }[] }>('player/match-history.json');
-  assert(h.account_id === 267836488, `account ${h.account_id}`);
-  assert(h.rows.length >= 20, `only ${h.rows.length} matches`);
-  return `${h.rows.length} standard-mode matches`;
-});
-
 // ------------------------------------------------------------------ 2. images are local, present and real
 
 await check('images: shop image for every shopable item, hero cards, ability icons (local files)', () => {
@@ -214,7 +207,7 @@ function reachable(entries: string[]): { files: string[]; packages: Set<string> 
 
 await check('generator never reads the validation snapshot', async () => {
   const { files, packages } = reachable([GENERATOR_ENTRY, LOADER]);
-  const validationFiles = files.filter((f) => /[\\/]src[\\/](validation|personalization)[\\/]/.test(f));
+  const validationFiles = files.filter((f) => /[\\/]src[\\/]validation[\\/]/.test(f));
   assert(validationFiles.length === 0, `generator imports reach ${validationFiles.map(rel).join(', ')}`);
   assert(packages.size === 0, `generator imports reach npm packages: ${[...packages].join(', ')}`);
   const offenders = files.filter((f) => /zergggy|35187362|purchases-infernus/i.test(readFileSync(f, 'utf8')));

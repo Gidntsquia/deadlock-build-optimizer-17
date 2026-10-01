@@ -40,9 +40,8 @@ To refresh the live data: run `npm run fetch-data`, commit `public/data`, and pu
 - **Hero picker** (top bar): all active heroes, searchable. The hero is kept in the address (`#hero=<id>`), so a link opens that hero.
 - **Build tabs**: Gun Damage, Spirit & Burn, Hybrid.
 - **Summary**: build name, total souls, and (Infernus) the agreement % with the reference player.
-- **Buy list**: grouped early / mid / late, drawn as cards like the in-game build screen. Each card has the item art, a roman-numeral tier tag in the top corner (purple spirit, green vitality, orange weapon), the name on a band, the price, the running soul total, and a core / not-core badge (Infernus). A light band means a core item (or no validation data for that hero); a dark band means not core. A dashed outline marks a stepping stone: a component the build buys early and later upgrades, listed as its own purchase because you really spend those souls. Active items carry an ACTIVE chip, and the "~5m" chip is when you would reach the purchase at your own pace.
+- **Buy list**: grouped early / mid / late, drawn as cards like the in-game build screen. Each card has the item art, a roman-numeral tier tag in the top corner (purple spirit, green vitality, orange weapon), the name on a band, the price, the running soul total, and a core / not-core badge (Infernus). A light band means a core item (or no validation data for that hero); a dark band means not core. A dashed outline marks a stepping stone: a component the build buys early and later upgrades, listed as its own purchase because you really spend those souls. Active items carry an ACTIVE chip.
 - **Ability order**: the in-game "Ability Point Order" chart. One row per ability (icon at the left, rows in ability-slot order), one column per point, 1 to 16, read left to right. A purple bolt marks the point that unlocks the ability; a diamond numbered 1, 2 or 3 marks that upgrade tier. Points after the recorded sequences end have a dashed outline. Below the chart, one card per ability lists its unlock and upgrade points and what the upgrades do.
-- **Your pace**: insight from your own match history (see "Personalization").
 - **Validation**: how well the generator did against the reference player (see "Validation").
 - **Item card** (tap any item anywhere, including the chips for "Built from" and "Upgrades into"): shop image, cost, tier, slot type, stat lines, and passive / active text, all from the assets data. On a phone it is a bottom sheet; on a desktop it is centered.
 
@@ -61,7 +60,6 @@ Layout: phone first (checked at 390×844, 360 and 320 wide), tap targets at leas
 | `analytics/ability-order-<id>.json` | Ability-point sequences with wins and losses (`/v1/analytics/ability-order-stats`). |
 | `analytics/permutation-stats-<id>.json` | Win rate of item pairs (`/v1/analytics/item-permutation-stats`, pairs, top 2,000 by matches). |
 | `analytics/hero-stats.json` | Matches, wins and net worth per hero (`/v1/analytics/hero-stats`). |
-| `player/match-history.json` | Your match history (account 267836488), standard mode only. |
 | `zergggy/match-history-infernus.json`, `zergggy/purchases-infernus.json` | Validation data only: the reference player's Infernus match list, and the item purchases of his 30 most recent real matchmaking Infernus matches (see "Validation"). |
 | `img/` and `img/manifest.json` | Local copies of every image the app shows (shop images, ability icons, hero portraits, inline tooltip icons). The manifest maps the remote URL to the local file. |
 
@@ -71,7 +69,7 @@ Window and filters for all aggregate analytics: matches since the latest patch (
 
 `src/generator/` is a pure function: `generateBuilds(inputs, params)`. Same snapshot and same parameters give the same builds, byte for byte. There is no randomness and no clock, and every tie is broken by item id (see "Determinism").
 
-**Inputs.** Match data: only the aggregate analytics snapshots listed above (`item-stats`, `ability-order`, `permutation-stats`, plus `hero-stats` for the hero's match count, win rate and average final net worth). Everything else is assets data: the item catalog and the hero's kit. The generator does not read the reference player's data or yours.
+**Inputs.** Match data: only the aggregate analytics snapshots listed above (`item-stats`, `ability-order`, `permutation-stats`, plus `hero-stats` for the hero's match count, win rate and average final net worth). Everything else is assets data: the item catalog and the hero's kit. The generator does not read the reference player's data.
 
 **Scoring.** Each candidate purchase gets a score given the items already chosen, the game phase and the build style:
 
@@ -102,9 +100,9 @@ w = phaseWeights[phase]      compress(x) = x / (1 + |x| / 4)
 
 **Power model.** `src/generator/power.ts` reads the hero's weapon (damage, rate of fire, magazine, reload), per-level growth and ability damage, then computes sustained gun damage per second, sustained spirit damage per second and effective health for a set of owned items, at the build's net worth plus `unspentSouls`. For Infernus this includes Afterburn: bullets that hit build up a burn, so fire rate and accuracy raise burn uptime, and spirit power and duration raise its damage. Gains are measured at one fixed net worth, so level growth cancels.
 
-**Selection.** The build is filled greedily in three phases of final items (early 3, mid 5, late 4 = 12 final items). The plan limits item tier per phase, items of one slot type per phase and in the inventory, and active items held at once. The total is held under a budget: `budgetShare` (90%) of the hero's average final net worth. If no candidate passes the normal limits, a four-step relaxation ladder retries: first the normal limits, then without the tier limits, then also without the per-phase slot cap, then also with the lower match-count and pick-rate floors (`fallback`) and up to 10% over budget. That is how every hero reaches 12 items.
+**Selection.** The build is filled greedily in three phases of final items (early 4, mid 5, late 3 = 12 final items). The plan limits item tier per phase, items of one slot type per phase and in the inventory, and active items held at once. The total is held under a budget: `budgetShare` (90%) of the hero's average final net worth. If no candidate passes the normal limits, a four-step relaxation ladder retries: first the normal limits, then without the tier limits, then also without the per-phase slot cap, then also with the lower match-count and pick-rate floors (`fallback`) and up to 10% over budget. That is how every hero reaches 12 items.
 
-**Upgrades and net cost.** An item built from components can be bought as an upgrade: it consumes the owned components and is credited their price, so it costs less. Running totals use that net cost. "Stepping stones" (popular cheap components the build buys early and upgrades later) are added to the buy list, so the buy order matches how the game's shop is used. The buy list is ordered by phase, then by the item's average buy time in the data.
+**Upgrades and net cost.** An item built from components can be bought as an upgrade: it consumes the owned components and is credited their price, so it costs less. Running totals use that net cost. "Stepping stones" (popular cheap components the build buys early and upgrades later) are added to the buy list, so the buy order matches how the game's shop is used. The buy list is in one order, by each item's average buy time in the data (raised where needed so an upgrade comes after the components it consumes). The early / mid / late heading on a row follows its buy time (before 10 minutes is early, before 21 minutes is mid, later is late), so it can differ from the stage the item was picked in.
 
 **Ability order.** `src/generator/abilities.ts` walks the recorded ability-point sequences as a tree, one point at a time. At each point it takes the branch with the best shrunk win rate among branches that keep at least `ability.minBranchShare` of the matches at that point. The first point put into an ability is labelled "Unlock"; the later ones are upgrade tiers 1 to 3. The result is always 16 points. Points past what the data supports (few matches last that long) are filled in and flagged "no data this far" in the UI, and each build shows how many matches back each stretch of the order.
 
@@ -121,7 +119,7 @@ A few constants are fixed in the code, not in `params.ts`, and appear in the for
 | Parameter | Default | Meaning |
 | --- | --- | --- |
 | `minMatches` | 150 | items below this many matches for the hero are not candidates |
-| `minPickRate` | 0.05 | items bought in fewer than this share of the hero's matches are not candidates |
+| `minPickRate` | 0.25 | items bought in fewer than this share of the hero's matches are not candidates |
 | `shrinkMatches` | 500 | prior strength (in matches) that pulls each item's win rate toward its buy-time baseline |
 | `baselineBandwidthS` | 240 | Gaussian kernel width (seconds) for the buy-time win-rate baseline |
 | `baselinePrior` | 10 | weight of the hero's overall win rate inside the baseline (in sqrt-match units) |
@@ -191,9 +189,9 @@ A few constants are fixed in the code, not in `params.ts`, and appear in the for
 
 | `phase` | `count` | `minTier` | `maxTier` | `maxPerSlot` | `maxUpgrades` |
 | --- | --- | --- | --- | --- | --- |
-| early | 3 | 1 | 2 | 2 | 2 |
+| early | 4 | 1 | 2 | 2 | 2 |
 | mid | 5 | 2 | 3 | 3 | 3 |
-| late | 4 | 3 | 5 | 3 | 3 |
+| late | 3 | 3 | 5 | 3 | 3 |
 
 - `count`: final items picked in this phase
 - `minTier`: lowest tier of a newly bought (not upgraded) item in this phase
@@ -219,11 +217,11 @@ A few constants are fixed in the code, not in `params.ts`, and appear in the for
 
 ### Determinism
 
-`generateBuilds` depends only on the snapshot and the parameters. Two runs in one process, and two separate Node processes, give identical JSON (`npm run check` does both; `npm run generate` prints `deterministic=true` and two hashes). For the 2026-09-30 snapshot: generator version 1.0.0, parameters hash `150cabebcc999f`, Infernus build-set hash `0b655e5850b717`. A new fetch changes the data, so the build-set hash changes with it; the parameters hash changes only when you edit the parameters.
+`generateBuilds` depends only on the snapshot and the parameters. Two runs in one process, and two separate Node processes, give identical JSON (`npm run check` does both; `npm run generate` prints `deterministic=true` and two hashes). For the 2026-09-30 snapshot: generator version 1.1.0, parameters hash `05d02d06eb05b9`, Infernus build-set hash `1171fb30d026d9`. A new fetch changes the data, so the build-set hash changes with it; the parameters hash changes only when you edit the parameters.
 
 ## Validation against the reference player
 
-Validation is a separate step that runs after generation. It compares the generated builds with the actual Infernus item choices of the top player Zergggy (account 35187362). His data is a **held-out** test set: the generator never sees it, and nothing was tuned to raise the agreement number.
+Validation is a separate step that runs after generation. It compares the generated builds with the actual Infernus item choices of the top player Zergggy (account 35187362). The generator never reads his data. For the first run (generator 1.0.0) it was a clean **held-out** test and nothing was tuned. It is no longer clean: I then raised the agreement by tuning the generator (version 1.1.0) with his score on screen. "Tuning pass" below says what was tuned on and what that does to the number.
 
 **Sample.** His 30 most recent real matchmaking Infernus matches (unranked or ranked, normal mode, no abandons; private lobbies and bot modes are excluded). Per match, the items he bought and when. At fetch time: 20 of the 30 were wins.
 
@@ -243,7 +241,7 @@ order concordance  = among items in both the build and the core set, the share o
 
 Every recommended item carries a core / not-core badge (an item he never bought in the sample is "not core · 0/30"), each build shows its agreement, and the validation panel lists the core items, the excluded experiments and the per-build numbers. It is shown as "how well the generator did", not as a source of the build.
 
-**Result, first and only run** (2026-09-30 snapshot, generator 1.0.0, parameters frozen before the run and unchanged since):
+**First run** (2026-09-30 snapshot, generator 1.0.0, parameters frozen before the run, nothing tuned):
 
 | Build | Agreement | Overlap (precision / recall) | Order |
 | --- | ---: | --- | ---: |
@@ -251,15 +249,37 @@ Every recommended item carries a core / not-core badge (an item he never bought 
 | Spirit & Burn | 66.0% | 61% (74% / 52%) | 78% |
 | Hybrid | 73.2% | 70% (84% / 59%) | 82% |
 
-I ran validation once and did not tune anything afterwards. The builds contain about half of his core items (recall 52% to 59%) and most of what they contain is core (precision 74% to 84%). The misses are real: Headshot Booster, Extra Regen and Healbane are core for him and appear in none of the three builds. I did not change the generator to pick them up.
+**Tuning pass (generator 1.1.0).** To raise the agreement without using his data, I tuned on other players. The tuning set is the Infernus matches since the latest patch of 84 top-of-the-leaderboard players (1,411 matches). The 40 players with at least 15 matches each get their own core set by the same 30% rule, and are split by account id into two groups, A (19 players) and B (21 players). A build's score on a group is its mean agreement over the players. Settings were chosen by the A and B mean. That data lives outside the repository and no player from it is named here. The generator does not read it: it only informed three changes:
 
-**Isolation, and how it is checked.** In the app and generator code, only `src/validation/index.ts` reads the reference snapshot. The fetch script writes it, and the two test scripts (`check`, `e2e`) read it to verify the results. `npm run check` follows the import graph of `src/generator/index.ts` and `src/data/snapshots.ts`, fails if it reaches the validation or personalization code or contains `zergggy`, `35187362` or `purchases-infernus`, and then generates builds for every hero with a file reader that throws if the generator asks for any path containing `zergggy`. You can also run `grep -rniE "zergggy|35187362|purchases-infernus" src/generator src/data`; it prints nothing.
+- `minPickRate` 0.05 → 0.25. Items bought in under a quarter of the hero's matches are no longer candidates. Agreement with the tuning players rose when the candidates were limited to popular items.
+- Phase plan 3 / 5 / 4 → 4 / 5 / 3 final items (early / mid / late). In the tuning set the median player makes 6 purchases by minute 10, 13 by minute 21 and 18 in all (11 of them never sold), in a median 35 minute match.
+- One buy order for the list, by typical buy time, instead of listing each pick stage in turn (see "How builds are generated").
 
-## Personalization
+I also tried raising the rank floor of the aggregate data to badge 90, 100 and 105. Agreement was lower with each.
 
-The "Your pace" card uses your own matches (account 267836488, standard mode only, from `player/match-history.json`): the median match length, souls per minute, median final net worth and win rate on this hero (or across all heroes when there are fewer than 8 games on the hero). The build is annotated with it: each purchase gets an estimated time you reach it (running total ÷ your souls per minute), the point where your typical game has already ended is marked, and the card says how many minutes before or after your typical game's end the build is complete, and how many souls you would have spare against your usual final net worth. For Infernus this snapshot has 378 usable games, a 33 minute median and about 1,240 souls per minute.
+| Mean over the three builds | 1.0.0 | 1.1.0 |
+| --- | ---: | ---: |
+| Other players, group A | 65.1 | 73.2 |
+| Other players, group B | 69.0 | 76.0 |
+| Zergggy | 70.5 | 73.4 |
 
-It only annotates. It does not change which items are picked, because the generator's only match-data inputs are the aggregate snapshots.
+His 1.1.0 builds, per build:
+
+| Build | Agreement | Overlap (precision / recall) | Order |
+| --- | ---: | --- | ---: |
+| Gun Damage | 76.2% | 74% (89% / 63%) | 82% |
+| Spirit & Burn | 71.0% | 67% (83% / 56%) | 81% |
+| Hybrid | 72.9% | 70% (84% / 59%) | 81% |
+
+What these numbers are and are not:
+
+- **No 1.1.0 number is a clean out-of-sample result.** Groups A and B chose the settings. His score was printed at every step and I used it as a guard against a drop. No change was rejected because of it, and the chosen settings raised it, but I did see it. His gain (70.5 → 73.4) is some sign that the improvement is not just fitted to A and B. It is not proof.
+- **Group A and B scores are close to the ceiling for a list this long.** A list built from the items other top players treat as core, scored against players left out of that consensus, gets about 74 to 79. Choosing different items has little left to give. Getting closer to one player needs that player's own data, and the generator must not read it.
+- **The cost is a bit of win rate and more conventional builds.** The mean aggregate win rate of the final items fell by about one point (Infernus 49.9% → 48.9%; all heroes 52.9% → 51.9%), and final items below a 25% pick rate went from 540 of 1,368 to 28 of 1,368 across the 38 heroes. Every build of every hero still reaches 12 final items.
+
+The builds contain 56% to 63% of his core items (recall), and 83% to 89% of what they contain is core (precision). 18 of his 27 core items are in at least one build. Nine are in none: Headshot Booster, Suppressor, Spirit Shielding, Weapon Shielding, Mystic Shot, Headhunter, Counterspell, Scourge and Warp Stone. Healbane is core for him and is only in the Spirit & Burn build; Extra Regen is core and is only in the Gun Damage build. I did not change the generator to pick up any of his specific items.
+
+**Isolation, and how it is checked.** In the app and generator code, only `src/validation/index.ts` reads the reference snapshot. The fetch script writes it, and the two test scripts (`check`, `e2e`) read it to verify the results. `npm run check` follows the import graph of `src/generator/index.ts` and `src/data/snapshots.ts`, fails if it reaches the validation code or contains `zergggy`, `35187362` or `purchases-infernus`, and then generates builds for every hero with a file reader that throws if the generator asks for any path containing `zergggy`. You can also run `grep -rniE "zergggy|35187362|purchases-infernus" src/generator src/data`; it prints nothing.
 
 ## Verification
 
@@ -269,10 +289,10 @@ It only annotates. It does not change which items are picked, because the genera
 | --- | --- | --- |
 | `fetch-data` writes the snapshots: item catalog with at least 200 shopable items, per-hero analytics for every active hero, at least 20 Zergggy matches with purchase data | `check` reads the snapshots; `check --live` compares them with the live API | **Gap on the first item**: the API lists 250 items and 173 are shopable (see judgment call 1). Analytics for all 38 heroes; 30 validation matches (552 purchase records). |
 | With snapshots present and the network off, `npm run build` succeeds and the served app renders with no console errors | `e2e` re-runs itself in an empty network namespace (`unshare -rn`), confirms the network is down, builds, serves `dist/`, loads the app, and fails on any console error or warning, page error, failed request, HTTP error or non-local request | Pass |
-| Opens on Infernus with at least 2 named builds; each has 12+ items grouped early / mid / late with cost and running total, and each item shows its correct shop image | `e2e` | Pass: 3 builds with 19 to 20 purchases (12 final items) each; every image checked against the catalog's shop image |
-| Any 3 other heroes generate and render without errors | `e2e` (picks 3 through the picker, then all 38 heroes) | Pass: 38 heroes, 114 builds, 1,903 purchases |
+| Opens on Infernus with at least 2 named builds; each has 12+ items grouped early / mid / late with cost and running total, and each item shows its correct shop image | `e2e` | Pass: 3 builds with 18 to 19 purchases (12 final items) each; every image checked against the catalog's shop image |
+| Any 3 other heroes generate and render without errors | `e2e` (picks 3 through the picker, then all 38 heroes) | Pass: 38 heroes, 114 builds, 2,066 purchases |
 | Each build shows an ability sequence with the 4 real Infernus names, unlock order and upgrade tiers | `e2e` | Pass: 16 points per build; each ability has a first point and upgrades 1 to 3 |
-| Tapping any item opens a card with image, cost, tier, slot type and stat / ability text matching the assets data | `e2e` opens every recommended item of every hero (129 distinct items) and the chip links, and compares each card with `catalog.json` | Pass |
+| Tapping any item opens a card with image, cost, tier, slot type and stat / ability text matching the assets data | `e2e` opens every recommended item of every hero (125 distinct items) and the chip links, and compares each card with `catalog.json` | Pass |
 | Every recommended item has a core / not-core badge, each build has an agreement %, and the README states the 30% rule | `e2e` recomputes the core set and the agreement from the raw snapshot and compares with the page; `check` checks this README | Pass |
 | The generator imports only the aggregate snapshots; only the validation module reads the reference snapshot | `check` (import graph, text search, guarded reader; see "Isolation") | Pass |
 | At 390×844 there is no horizontal scrolling on any screen, and all controls stay tappable | `e2e` measures every screen state (builds, item cards, picker, expanded lists): page width, every element's box, clipped text, and each control's size and whether another element covers it | Pass: no overflow; every control at least 40×40 px |
@@ -286,18 +306,18 @@ I built this without being able to ask, so these are the decisions I made. Each 
 2. **API host moved.** The old `assets.deadlock-api.com/v2` no longer answers; assets now live at `https://api.deadlock-api.com/v1/assets/...`. The fetch script uses the new path.
 3. **Data window and rank floor.** Aggregates cover matches since the latest patch (7 to 30 days back), average badge 70 or higher, ranked and unranked normal games. A fresh patch changes the meta, and a rank floor keeps the signal close to how a top player plays while leaving about 31,000 Infernus matches. Both are options on the fetch script.
 4. **Corrupted items** are excluded from the analytics, which is the API default.
-5. **Builds hold 12 final items, and the buy list also shows components.** The brief asks for a buy list of 12 or more items. A build is 12 final items (early 3, mid 5, late 4); purchases of components that are later upgraded are listed too, since they cost souls and come in the order you buy them (19 to 20 rows for Infernus).
+5. **Builds hold 12 final items, and the buy list also shows components.** The brief asks for a buy list of 12 or more items. A build is 12 final items (early 4, mid 5, late 3); purchases of components that are later upgraded are listed too, since they cost souls and come in the order you buy them (18 to 19 rows for Infernus).
 6. **Soul-investment bonuses are read as running totals.** The hero's `cost_bonuses` rise at each threshold (Infernus weapon: 9, 12, 15, 18, 46, …), so the bonus at a spend is the highest step reached, not a sum of steps.
 7. **Tooltip sections without a type are treated as passive**, and effects without a stated duration or cooldown use a fixed uptime (`passiveUptime` 0.4, `activeUptime` 0.25). These are guesses, documented in the parameters.
-8. **A slot-type bias tilts the build styles, and the effect is modest.** Each style has power-model weights (gun damage against spirit damage) plus one score bonus per slot type, added so the style names show up in the item mix. On this snapshot the Gun Damage and Spirit & Burn builds still share 8 of 12 final items (9 of 12 with the bias set to zero); the bias moves about one weapon item between them (5 weapon items in the gun build and 2 in the spirit build, against 4 and 3 without it). The bias was not tuned against the validation numbers.
-9. **Minimum pick rate 5%.** Items bought in fewer than 5% of a hero's matches are not candidates, unless the relaxation ladder needs them to reach 12 items. Rarely bought items have noisy win rates.
+8. **A slot-type bias separates the build styles, and the builds still overlap a lot.** Each style has power-model weights (gun damage against spirit damage) plus one score bonus per slot type, added so the style names show up in the item mix. On this snapshot the Gun Damage and Spirit & Burn builds share 8 of 12 final items, and 11 of 12 with the bias set to zero. The bias moves about one weapon item between them (5 weapon items in the gun build and 3 in the spirit build, against 5 and 4 without it). With the 25% pick-rate floor (next call) there are fewer candidates, so the styles differ less than they did at 5%. The bias was not tuned against the validation numbers.
+9. **Minimum pick rate 25%.** Items bought in fewer than a quarter of a hero's matches are not candidates, unless the relaxation ladder needs them to reach 12 items. It was 5% in version 1.0.0. I raised it in the tuning pass because it lifted agreement with other top players (see "Validation"). The price is builds that follow the crowd: the final items' mean aggregate win rate is about one point lower, and an unusual item with a good win rate has to clear the bar of being popular first. Rarely bought items also have noisy win rates, which the floor keeps out.
 10. **Ability order is data-driven, so the three builds share it.** The style only breaks near-ties (`ability.styleTilt`), and for Infernus it never does. Later points rest on few matches (for example 775 of 14,730 matches back the full 16-point path); the UI shows the support and flags points past the data.
 11. **Validation covers Infernus only**, as the brief says. Other heroes show a note instead of badges.
 12. **Zergggy may be in the aggregate data.** He plays at a rank above the floor, so some of his matches are probably among the 31,000 Infernus matches. The generator still never reads his data or his account, but the aggregate is not guaranteed free of his games, so the agreement is a sanity check and not a clean out-of-sample test.
-13. **Personalization annotates, it does not change picks**, because the brief limits the generator's match-data inputs to the aggregate snapshots.
+13. **Version 1.1.0 was tuned on other top players' matches, with Zergggy's score on screen.** I used his score only as a guard against a drop. No change was rejected because of it, but it means his 73.4% is not a clean out-of-sample number (see "Validation"). The tuning data is not in the repository.
 14. **One inline tooltip icon is missing.** One image referenced in an item's text returns 404 at the source. The fetch script records it and the app leaves the icon out, so the page never asks the network for it.
 15. **Images are copied locally** (405 files), so the app makes no request to any other host.
-16. **Published as a public GitHub Pages site.** GitHub Pages on a free plan needs a public repository, so the source and the site are both public. They carry the same snapshot as a local run, including your match rows for account 267836488 (`player/match-history.json`) and the reference player's 30 matches. The public Deadlock API returns the same rows for those accounts.
+16. **Published as a public GitHub Pages site.** GitHub Pages on a free plan needs a public repository, so the source and the site are both public. They carry the same snapshot as a local run, including the reference player's 30 matches. The public Deadlock API returns the same rows for that account.
 17. **The ability chart numbers the upgrades 1, 2, 3.** The in-game chart puts 1, 2 and 5 on its upgrade chips. The snapshot has no ability-point cost data, so the app shows the upgrade tier instead. Switching the labels to 1 / 2 / 5 is a small change in `src/components/AbilityOrder.tsx`.
 
 ## Project layout
@@ -312,7 +332,6 @@ scripts/e2e.mjs            browser acceptance test (npm run e2e)
 scripts/lib/               snapshot reader for Node, README parameter-table writer
 src/generator/             the generator: evidence, item model, power model, builder, abilities, params
 src/validation/            core set and agreement; the only code that reads the reference snapshot
-src/personalization/       the "Your pace" numbers and per-purchase estimates
 src/data/                  snapshot loading and assets helpers (image paths, text cleanup, stat lines)
 src/components/            UI: hero picker, buy list (item cards), ability order chart, item card, validation panel
 src/styles.css             the whole look: colour tokens, parchment and paper textures, cards, chart

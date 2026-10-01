@@ -37,12 +37,11 @@ interface Props {
   badge: ItemBadge | null;
   sample: number;
   heroName: string;
-  etaMin: number | null;
   onClose: () => void;
 }
 
 /** Detail card for one item, rendered from the assets data (image, cost, tier, slot, stat lines, passive and active text). */
-export function ItemSheet({ itemId, buildItem, badge, sample, heroName, etaMin, onClose }: Props) {
+export function ItemSheet({ itemId, buildItem, badge, sample, heroName, onClose }: Props) {
   const { app, openItem } = useUi();
   const item: CatalogItem | undefined = app.itemsById.get(itemId);
   if (!item) {
@@ -150,12 +149,6 @@ export function ItemSheet({ itemId, buildItem, badge, sample, heroName, etaMin, 
               <span className="sl-label">Running soul total</span>
               <span className="sl-value">{fmtSouls(buildItem.running)}</span>
             </li>
-            {etaMin !== null && (
-              <li className="statline">
-                <span className="sl-label">At your pace</span>
-                <span className="sl-value">~minute {Math.max(1, Math.round(etaMin))}</span>
-              </li>
-            )}
             <li className="statline">
               <span className="sl-label">{heroName} win rate when bought</span>
               <span className="sl-value">{(buildItem.evidence.winRate * 100).toFixed(1)}%</span>

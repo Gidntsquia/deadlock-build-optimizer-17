@@ -290,7 +290,7 @@ function phaseOfTime(t: number, params: GeneratorParams): PhaseId {
 
 interface Purchase {
   model: ItemModel;
-  phase: PhaseId;
+  /** typical buy time in seconds, raised where needed so an upgrade comes after its components */
   key: number;
   pick: Pick | null;
 }
@@ -308,7 +308,7 @@ export function planPurchases(ctx: BuilderContext, picks: Pick[]): BuildItem[] {
     let key = p.ev.avgBuyTimeS ?? defaultTime(p.phase);
     for (const c of p.consumes) key = Math.max(key, (keyOf.get(c) ?? 0) + 1);
     keyOf.set(p.model.id, key);
-    purchases.push({ model: p.model, phase: p.phase, key, pick: p });
+    purchases.push({ model: p.model, key, pick: p });
   }
 
   // components the picks were not built from: buy the popular ones early and upgrade them
@@ -325,14 +325,13 @@ export function planPurchases(ctx: BuilderContext, picks: Pick[]): BuildItem[] {
       if (ev.pickRate < params.stones.minPickRate || cm.tier > params.stones.maxTier) continue;
       const parentKey = keyOf.get(f.model.id)!;
       const own = ev.avgBuyTimeS ?? parentKey - 600;
-      let phase = phaseOfTime(own, params);
-      if (phaseIndex(phase) > phaseIndex(f.phase)) phase = f.phase;
       stones.add(cid);
-      purchases.push({ model: cm, phase, key: Math.min(own, parentKey - 1), pick: null });
+      purchases.push({ model: cm, key: Math.min(own, parentKey - 1), pick: null });
     }
   }
 
-  purchases.sort((a, b) => phaseIndex(a.phase) - phaseIndex(b.phase) || a.key - b.key || a.model.id - b.model.id);
+  // one time order for the whole list; the early / mid / late heading of each row follows its buy time
+  purchases.sort((a, b) => a.key - b.key || a.model.id - b.model.id);
 
   const owned = new Set<number>();
   const consumedBy = new Map<number, number>();
@@ -358,7 +357,7 @@ export function planPurchases(ctx: BuilderContext, picks: Pick[]): BuildItem[] {
       name: p.model.name,
       slot: p.model.slot,
       tier: p.model.tier,
-      phase: p.phase,
+      phase: phaseOfTime(p.key, params),
       role: 'final',
       cost: p.model.cost,
       netCost,

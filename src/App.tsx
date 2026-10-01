@@ -6,14 +6,12 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { Footer } from './components/Footer';
 import { HeroPicker, heroPortrait } from './components/HeroPicker';
 import { Img } from './components/Img';
-import { InsightCard } from './components/InsightCard';
 import { ItemSheet } from './components/ItemSheet';
 import { ValidationPanel } from './components/ValidationPanel';
 import { UiContext } from './components/context';
 import { DEFAULT_HERO_ID, loadAppData, loadHeroResult, type AppData, type HeroResult } from './data/app-data';
 import { fmtSouls } from './data/assets';
 import { hashBuildSet } from './generator';
-import { annotateBuild } from './personalization';
 import { badgesFor } from './validation';
 
 function heroFromHash(): number | null {
@@ -92,7 +90,6 @@ export default function App() {
   const buildSetHash = useMemo(() => (fresh ? hashBuildSet(fresh.set) : null), [fresh]);
 
   const agreement = fresh?.report && build ? (fresh.report.builds.find((b) => b.buildId === build.id) ?? null) : null;
-  const annotation = fresh?.insight && build ? annotateBuild(build, fresh.insight) : null;
   const sample = fresh?.report?.matches ?? 0;
 
   const onTabKey = (e: KeyboardEvent<HTMLButtonElement>): void => {
@@ -136,7 +133,6 @@ export default function App() {
 
   const selectedItem = openItemId !== null ? openItemId : null;
   const openBuildItem = selectedItem !== null && build ? (build.items.find((i) => i.itemId === selectedItem) ?? null) : null;
-  const openIndex = openBuildItem && build ? build.items.indexOf(openBuildItem) : -1;
 
   return (
     <UiContext.Provider value={ui}>
@@ -202,11 +198,10 @@ export default function App() {
               <>
                 <div id="build-panel" role="tabpanel" aria-labelledby={`build-tab-${buildIdx}`} className="build-panel" data-testid="build-panel" data-build={build.id}>
                   <BuildSummary build={build} budget={fresh.set.budget} agreement={agreement} sample={sample} />
-                  {fresh.insight && annotation && <InsightCard insight={fresh.insight} annotation={annotation} build={build} heroName={fresh.set.heroName} />}
                   <section className="buy-order" aria-label="Buy order">
                     <h2 className="section-heading">Buy order</h2>
                     <p className="section-note">Tap an item for its details. {fresh.report ? 'Badges show whether Zergggy treats the item as core (bought in at least 30% of his sampled games).' : `No validation data for ${fresh.set.heroName}: the reference player's data covers Infernus only.`}</p>
-                    <BuyList build={build} agreement={agreement} sample={sample} insight={fresh.insight} annotation={annotation} />
+                    <BuyList build={build} agreement={agreement} sample={sample} />
                   </section>
                   <AbilityOrder plan={build.abilityPlan} kit={fresh.kit} />
                 </div>
@@ -238,7 +233,6 @@ export default function App() {
           badge={fresh?.report ? (agreement?.badges[selectedItem] ?? badgesFor([selectedItem], fresh.report.core)[selectedItem] ?? null) : null}
           sample={sample}
           heroName={fresh?.set.heroName ?? ''}
-          etaMin={annotation && openIndex >= 0 ? (annotation.etaMin[openIndex] ?? null) : null}
           onClose={closeItem}
         />
       )}

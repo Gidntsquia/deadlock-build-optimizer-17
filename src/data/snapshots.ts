@@ -16,7 +16,6 @@ import type {
   ItemStatsSnapshot,
   MetaSnapshot,
   PermutationSnapshot,
-  PlayerHistorySnapshot,
 } from '../types';
 
 /** Reads a JSON file under the data folder, e.g. "catalog.json" or "analytics/item-stats-1.json". */
@@ -56,8 +55,4 @@ export async function loadHeroInputs(f: JsonFetcher, shared: SharedData, heroId:
   ]);
   const heroStats = shared.heroStats.find((r) => r.hero_id === heroId) ?? { hero_id: heroId, wins: 0, losses: 0, matches: 0 };
   return { catalog: shared.catalog, kit, itemStats, abilityOrder, permutations, heroStats };
-}
-
-export async function loadPlayerHistory(f: JsonFetcher): Promise<PlayerHistorySnapshot> {
-  return (await f('player/match-history.json')) as PlayerHistorySnapshot;
 }

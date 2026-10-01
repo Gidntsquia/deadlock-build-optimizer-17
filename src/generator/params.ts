@@ -4,7 +4,7 @@
  */
 import type { PhaseId, SlotType, StyleId } from '../types';
 
-export const GENERATOR_VERSION = '1.0.0';
+export const GENERATOR_VERSION = '1.1.0';
 
 export interface PhaseWeights {
   /** shrunk win-rate lift against items bought at the same time (evidence) */
@@ -140,7 +140,7 @@ export interface GeneratorParams {
 
 export const DEFAULT_PARAMS: GeneratorParams = {
   minMatches: 150,
-  minPickRate: 0.05,
+  minPickRate: 0.25,
   shrinkMatches: 500,
   baselineBandwidthS: 240,
   baselinePrior: 10,
@@ -163,9 +163,9 @@ export const DEFAULT_PARAMS: GeneratorParams = {
   utilityUnit: 0.05,
 
   plan: [
-    { phase: 'early', count: 3, minTier: 1, maxTier: 2, maxPerSlot: 2, maxUpgrades: 2 },
+    { phase: 'early', count: 4, minTier: 1, maxTier: 2, maxPerSlot: 2, maxUpgrades: 2 },
     { phase: 'mid', count: 5, minTier: 2, maxTier: 3, maxPerSlot: 3, maxUpgrades: 3 },
-    { phase: 'late', count: 4, minTier: 3, maxTier: 5, maxPerSlot: 3, maxUpgrades: 3 },
+    { phase: 'late', count: 3, minTier: 3, maxTier: 5, maxPerSlot: 3, maxUpgrades: 3 },
   ],
   phaseWeights: {
     early: { win: 0.6, pick: 1.0, power: 1.2, kit: 0.4, pair: 0.3, timing: 0.5 },

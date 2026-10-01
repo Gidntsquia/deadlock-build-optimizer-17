@@ -198,7 +198,6 @@ const inPage = {
       rows,
       steps: $$('[data-testid="ability-step"]', panel).map((el) => ({ point: Number(el.dataset.point), ability: el.dataset.ability, kind: el.dataset.kind, tier: Number(el.dataset.tier), label: text(el.querySelector('.step-kind')) })),
       cards: $$('[data-testid="ability-card"]', panel).map((el) => el.dataset.ability),
-      insight: !!panel?.querySelector('[data-testid="insight"]'),
       badgesShown: $$('[data-testid="core-badge"]', panel).length,
       failed: !!document.querySelector('[data-testid="hero-error"], [data-testid="render-error"], [data-testid="load-error"]'),
     };
@@ -668,7 +667,6 @@ async function main() {
     const expRows = await page.locator(T('experiment-row')).evaluateAll((els) => els.map((e) => Number(e.dataset.itemId)));
     const expCount = [...ref.items.values()].filter((i) => !i.core).length;
     check(`"excluded experiments" list has ${expCount} items, none core`, expRows.length === expCount && expRows.every((id) => ref.items.get(id) && !ref.items.get(id).core), `${expRows.length} listed`);
-    check('the Infernus page shows a personalization insight', builds.every((b) => b.insight));
 
     // ---------------------------------------------------------------- criterion 6: item cards
     section('Criterion 6 — item detail card matches the assets data');

@@ -215,35 +215,7 @@ export interface MetaSnapshot {
   counts: { catalogItems: number; shopableItems: number; heroes: number };
   images?: { available: number; failed: number };
   heroIds: number[];
-  player: { account_id: number; totalRows: number; standardRows: number };
   validationData: { included: boolean; account_id?: number; hero_id?: number; matches?: number; skipped?: number; fetchedAt?: string };
-}
-
-// ------------------------------------------------------------------ player history (personalization)
-
-export interface PlayerMatchRow {
-  match_id: number;
-  hero_id: number;
-  start_time: number;
-  match_duration_s: number;
-  match_result: number;
-  player_team: number;
-  game_mode: number;
-  match_mode: number;
-  player_kills?: number;
-  player_deaths?: number;
-  player_assists?: number;
-  net_worth?: number;
-  last_hits?: number;
-  hero_level?: number;
-}
-
-export interface PlayerHistorySnapshot {
-  account_id: number;
-  fetchedAt: string;
-  note?: string;
-  totalRows: number;
-  rows: PlayerMatchRow[];
 }
 
 // ------------------------------------------------------------------ generator

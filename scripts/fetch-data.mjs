@@ -22,8 +22,7 @@ const API = 'https://api.deadlock-api.com';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'public', 'data');
 
-// Accounts named in the project brief.
-const USER_ACCOUNT_ID = 267836488; // personalization
+// The one account named in the project brief.
 const VALIDATION_ACCOUNT_ID = 35187362; // held-out validation only (Zergggy)
 const VALIDATION_HERO_ID = 1; // Infernus
 
@@ -368,27 +367,13 @@ async function fetchAnalytics(heroes, abilityIdsByHero, window) {
   }
 }
 
-// ---------------------------------------------------------------- player data
+// ---------------------------------------------------------------- validation data
 
 function trimHistoryRow(r) {
   return pick(r, [
     'match_id', 'hero_id', 'start_time', 'match_duration_s', 'match_result', 'player_team', 'game_mode', 'match_mode',
     'player_kills', 'player_deaths', 'player_assists', 'net_worth', 'last_hits', 'hero_level', 'abandoned_time_s', 'team_abandoned',
   ]);
-}
-
-async function fetchUserHistory() {
-  const rows = await getJson(`${API}/v1/players/${USER_ACCOUNT_ID}/match-history`);
-  const standard = rows.filter((r) => r.game_mode === NORMAL_GAME_MODE);
-  await writeJson('player/match-history.json', {
-    account_id: USER_ACCOUNT_ID,
-    fetchedAt: new Date().toISOString(),
-    note: 'Standard (game_mode 1) matches only. match_result === player_team means a win.',
-    totalRows: rows.length,
-    rows: standard.map(trimHistoryRow),
-  });
-  console.log(`player ${USER_ACCOUNT_ID}: ${standard.length} standard matches of ${rows.length}`);
-  return { totalRows: rows.length, standardRows: standard.length };
 }
 
 async function fetchValidationData(catalogIds) {
@@ -566,9 +551,6 @@ async function main() {
   // Images (shop icons, hero cards, ability icons) are stored locally so the app needs no network.
   const images = await downloadImages(collectImageUrls(catalogItems, kits, heroSummaries));
 
-  // Personalization data
-  const user = await fetchUserHistory();
-
   // Validation data (held out; generator never reads it)
   let validation = prevMeta.validationData ?? { included: false };
   if (!cfg.skipZergggy) {
@@ -597,7 +579,6 @@ async function main() {
       counts: { catalogItems: catalogItems.length, shopableItems: shopable.length, heroes: heroes.length },
       images,
       heroIds: heroes.map((h) => h.id),
-      player: { account_id: USER_ACCOUNT_ID, ...user },
       validationData: validation,
     },
     { pretty: true },
