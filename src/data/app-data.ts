@@ -1,7 +1,7 @@
 /** Loads everything the app needs once at start, and builds per-hero results on demand. */
-import { generateBuilds } from '../generator';
-import type { BuildSet, CatalogItem, HeroKit } from '../types';
-import { loadValidationSnapshot, validateBuildSet, type ValidationReport, type ValidationSnapshot } from '../validation';
+import { generateBuild } from '../generator';
+import type { Build, CatalogItem, HeroKit } from '../types';
+import { loadValidationSnapshot, validateBuild, type ValidationReport, type ValidationSnapshot } from '../validation';
 import type { ImageManifest } from './assets';
 import { browserFetcher, loadHeroInputs, loadShared, type JsonFetcher, type SharedData } from './snapshots';
 
@@ -14,7 +14,7 @@ export interface AppData {
   itemsByClass: Map<string, CatalogItem>;
 }
 
-/** Hero whose builds are checked against the validation snapshot. */
+/** Hero whose build is checked against the validation snapshot. */
 export const VALIDATION_HERO_ID = 1;
 export const DEFAULT_HERO_ID = 1;
 
@@ -37,14 +37,14 @@ export async function loadAppData(fetcher: JsonFetcher = browserFetcher()): Prom
 }
 
 export interface HeroResult {
-  set: BuildSet;
+  build: Build;
   kit: HeroKit;
   report: ValidationReport | null;
 }
 
 export async function loadHeroResult(app: AppData, heroId: number): Promise<HeroResult> {
   const inputs = await loadHeroInputs(app.fetcher, app.shared, heroId);
-  const set = generateBuilds(inputs);
-  const report = heroId === VALIDATION_HERO_ID && app.validation ? validateBuildSet(set, app.validation) : null;
-  return { set, kit: inputs.kit, report };
+  const build = generateBuild(inputs);
+  const report = heroId === VALIDATION_HERO_ID && app.validation ? validateBuild(build, app.validation) : null;
+  return { build, kit: inputs.kit, report };
 }

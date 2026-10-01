@@ -5,7 +5,7 @@
  * The build is a list of purchases. A purchase is either a new item or an upgrade that consumes components
  * already owned (the game credits their price). The final inventory always ends up with `plan` total new items.
  *
- * score(item | build so far, phase, style) =
+ * score(item | build so far, phase) =
  *     w.win    * winLift / winLiftScale * reliability(pickRate)     win-rate evidence (buy-time adjusted)
  *   + w.pick   * min(pickRate / pickRateCap, 1)                       usage evidence
  *   + w.power  * compress(ln-power gained per 1000 net souls / ref)   stat value per soul, split into
@@ -13,13 +13,12 @@
  *   + w.kit    * kitFit                                               hero-kit specific fit
  *   + w.pair   * mean pair lift with the items it would sit next to   permutation stats
  *   + w.timing * how far the typical buy time is outside the phase    game phase
- *   + style.slotBias[slot]                                            the build's style (gun / spirit / hybrid)
  */
 import type { BuildItem, PhaseId, SlotType, TermContribution } from '../types';
 import type { ItemEvidence, PairIndex } from './evidence';
 import type { ItemModel } from './itemModel';
 import type { KitProfile } from './kit';
-import type { GeneratorParams, PhasePlanStep, PhaseWeights, StyleDef } from './params';
+import type { GeneratorParams, PhasePlanStep, PhaseWeights } from './params';
 import { gainFromChange, type PowerGain } from './power';
 import { clamp, fmtSouls } from './util';
 
@@ -153,7 +152,7 @@ function relaxations(params: GeneratorParams): Relaxation[] {
   ];
 }
 
-export function selectPicks(ctx: BuilderContext, style: StyleDef): Pick[] {
+export function selectPicks(ctx: BuilderContext): Pick[] {
   const { profile, params, models, evidence, pairs } = ctx;
   const rel = kitRelevance(profile);
   const down = componentClosure(models);
@@ -218,7 +217,7 @@ export function selectPicks(ctx: BuilderContext, style: StyleDef): Pick[] {
           const reserve = newFloors.slice(Math.max(0, owned.length + 1 - cls.consumes.length)).reduce((s, f) => s + f, 0);
           if (spent + netCost + reserve > ctx.budget * (1 + relax.budgetSlack)) continue;
 
-          const gain = gainFromChange(profile, owned, model, cls.consumes, style, params);
+          const gain = gainFromChange(profile, owned, model, cls.consumes, params);
           const soulsK = Math.max(netCost, 200) / 1000;
           const powerValue = compress(gain.total / soulsK / params.powerRefPerK);
           const split = (part: number): number => (Math.abs(gain.total) > 1e-9 ? (powerValue * part) / gain.total : powerValue / 3);
@@ -256,7 +255,6 @@ export function selectPicks(ctx: BuilderContext, style: StyleDef): Pick[] {
             { term: 'kit fit', value: w.kit * kit },
             { term: 'pair synergy', value: w.pair * pair },
             { term: 'timing', value: w.timing * timing },
-            { term: 'build style', value: style.slotBias[model.slot] },
           ];
           const score = terms.reduce((s, t) => s + t.value, 0);
           const cand: Pick = { model, ev, phase: step.phase, kind: cls.kind, consumes: cls.consumes.map((o) => o.id), netCost, score, terms, gain, pair, pairWith };

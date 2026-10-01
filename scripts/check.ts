@@ -14,9 +14,9 @@ import { dirname, join, relative, resolve } from 'node:path';
 import ts from 'typescript';
 import { itemImage, localImage, type ImageManifest } from '../src/data/assets';
 import { loadHeroInputs, loadShared, type JsonFetcher } from '../src/data/snapshots';
-import { DEFAULT_PARAMS, generateBuilds, hashBuildSet } from '../src/generator';
+import { DEFAULT_PARAMS, generateBuild, hashBuild } from '../src/generator';
 import { hashString, stableStringify } from '../src/generator/util';
-import type { Build, BuildSet, CatalogItem, HeroKit } from '../src/types';
+import type { Build, CatalogItem, HeroKit } from '../src/types';
 import type { ValidationSnapshot } from '../src/validation';
 import { DATA_DIR, ROOT, nodeFetcher } from './lib/node-data';
 import { DOCS_BEGIN, DOCS_END, renderParamDocs, withParamDocs } from './lib/param-docs';
@@ -229,7 +229,7 @@ await check('generator never reads the validation snapshot', async () => {
   // runtime proof: generate every hero with a fetcher that throws on the validation path
   requested.length = 0;
   const guardedShared = await loadShared(guardedFetcher);
-  for (const h of heroes) generateBuilds(await loadHeroInputs(guardedFetcher, guardedShared, h.id));
+  for (const h of heroes) generateBuild(await loadHeroInputs(guardedFetcher, guardedShared, h.id));
   const paths = [...new Set(requested.map((p) => p.replace(/\d+(?=\.json$)/, '<hero>')))].sort();
   assert(!paths.some((p) => /zergggy/i.test(p)), 'the generator requested a validation path');
   return `${files.length} generator modules import only each other and src/types.ts; data read at run time: ${paths.join(', ')}; the validation file is named only in ${holders.join(' and ')}`;
@@ -237,10 +237,10 @@ await check('generator never reads the validation snapshot', async () => {
 
 // ------------------------------------------------------------------ 4. generator output shape + determinism
 
-function checkBuild(set: BuildSet, b: Build, byId: Map<number, CatalogItem>, kit: HeroKit): void {
-  const who = `${set.heroName}/${b.name}`;
-  assert(b.name.trim().length > 0, `${who}: unnamed build`);
+function checkBuild(b: Build, byId: Map<number, CatalogItem>, kit: HeroKit): void {
+  const who = b.heroName;
   assert(b.finalItemIds.length >= SPEC_MIN_FINAL_ITEMS, `${who}: ${b.finalItemIds.length} final items`);
+  assert(b.totalCost <= b.budget * (1 + DEFAULT_PARAMS.fallback.budgetSlack), `${who}: ${b.totalCost} souls is over the budget of ${b.budget}`);
   const order = ['early', 'mid', 'late'];
   let last = -1;
   let running = 0;
@@ -270,41 +270,35 @@ function checkBuild(set: BuildSet, b: Build, byId: Map<number, CatalogItem>, kit
   assert(points.every((p, i) => p.point === i + 1), `${who}: points are not numbered 1..16`);
 }
 
-await check('generator output: builds, buy lists, ability orders for every hero', async () => {
+await check('generator output: one build, buy list and ability order for every hero', async () => {
   const byId = new Map(catalog.map((c) => [c.id, c]));
-  let builds = 0;
   let items = 0;
   for (const h of heroes) {
     const inputs = await loadHeroInputs(guardedFetcher, shared, h.id);
-    const set = generateBuilds(inputs);
-    assert(set.builds.length >= 2, `${h.name}: ${set.builds.length} builds`);
-    assert(new Set(set.builds.map((b) => b.name)).size === set.builds.length, `${h.name}: duplicate build names`);
-    for (const b of set.builds) {
-      checkBuild(set, b, byId, inputs.kit);
-      builds++;
-      items += b.items.length;
-    }
+    const build = generateBuild(inputs);
+    checkBuild(build, byId, inputs.kit);
+    items += build.items.length;
   }
-  const inf = generateBuilds(await loadHeroInputs(guardedFetcher, shared, 1));
-  return `${heroes.length} heroes, ${builds} builds, ${items} purchases; Infernus: ${inf.builds.map((b) => `${b.name} ${b.finalItemIds.length} items / ${b.totalCost} souls`).join(', ')}`;
+  const inf = generateBuild(await loadHeroInputs(guardedFetcher, shared, 1));
+  return `${heroes.length} heroes, one build each, ${items} purchases; Infernus: ${inf.finalItemIds.length} items / ${inf.totalCost} souls`;
 });
 
-await check('determinism: same snapshot, identical builds (in-process and across processes)', async () => {
+await check('determinism: same snapshot, identical build (in-process and across processes)', async () => {
   const hashes: string[] = [];
   for (const h of heroes) {
     const inputs = await loadHeroInputs(guardedFetcher, shared, h.id);
-    const a = generateBuilds(inputs);
-    const b = generateBuilds(await loadHeroInputs(guardedFetcher, shared, h.id));
-    assert(JSON.stringify(a) === JSON.stringify(b) && hashBuildSet(a) === hashBuildSet(b), `${h.name}: two runs differ`);
-    hashes.push(hashBuildSet(a));
+    const a = generateBuild(inputs);
+    const b = generateBuild(await loadHeroInputs(guardedFetcher, shared, h.id));
+    assert(JSON.stringify(a) === JSON.stringify(b) && hashBuild(a) === hashBuild(b), `${h.name}: two runs differ`);
+    hashes.push(hashBuild(a));
   }
   const run = (): string =>
     execFileSync(process.execPath, ['--import', 'tsx', join(ROOT, 'scripts', 'generate.ts'), '--all', '--json'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 29 });
   const first = run();
   const second = run();
   assert(first.length > 100_000 && first === second, 'two separate generator processes printed different builds');
-  const inf = hashBuildSet(generateBuilds(await loadHeroInputs(guardedFetcher, shared, 1)));
-  return `${heroes.length} heroes identical twice in one process and across two processes (${(first.length / 1e6).toFixed(1)} MB of JSON compared); Infernus build-set hash ${inf}, params hash ${hashString(stableStringify(DEFAULT_PARAMS))}`;
+  const inf = hashBuild(generateBuild(await loadHeroInputs(guardedFetcher, shared, 1)));
+  return `${heroes.length} heroes identical twice in one process and across two processes (${(first.length / 1e6).toFixed(1)} MB of JSON compared); Infernus build hash ${inf}, params hash ${hashString(stableStringify(DEFAULT_PARAMS))}`;
 });
 
 // ------------------------------------------------------------------ 5. README

@@ -2,9 +2,9 @@
  * Every weight and constant the generator uses, in one place. The README documents each one.
  * The generator is a pure function of (aggregate snapshots, these params): no randomness, no clock.
  */
-import type { PhaseId, SlotType, StyleId } from '../types';
+import type { PhaseId } from '../types';
 
-export const GENERATOR_VERSION = '1.1.0';
+export const GENERATOR_VERSION = '1.2.0';
 
 export interface PhaseWeights {
   /** shrunk win-rate lift against items bought at the same time (evidence) */
@@ -35,18 +35,15 @@ export interface PhasePlanStep {
   maxUpgrades: number;
 }
 
-export interface StyleDef {
-  id: StyleId;
-  /** weight on gun damage per second in the power model */
+export interface PowerWeights {
+  /** weight on ln(gun damage per second) */
   aGun: number;
-  /** weight on spirit damage per second */
+  /** weight on ln(1 + spirit damage per second) */
   aSpirit: number;
-  /** weight on effective health */
+  /** weight on ln(effective health) */
   aSurv: number;
   /** weight on utility (crowd control, mobility) */
   aUtil: number;
-  /** score added to every candidate of a slot type, so a gun build leans on weapon items and a spirit build on spirit items */
-  slotBias: Record<SlotType, number>;
 }
 
 export interface GeneratorParams {
@@ -95,6 +92,8 @@ export interface GeneratorParams {
   powerRefPerK: number;
   /** ln-power value of one utility unit (crowd control, mobility) */
   utilityUnit: number;
+  /** how the four power readings are weighted into one number; the same for every hero, since the hero's own kit decides which stats pay off */
+  weights: PowerWeights;
 
   // ---- selection
   plan: PhasePlanStep[];
@@ -125,7 +124,6 @@ export interface GeneratorParams {
     /** share of the budget a build may exceed while relaxed */
     budgetSlack: number;
   };
-  styles: StyleDef[];
 
   // ---- ability order
   ability: {
@@ -133,8 +131,8 @@ export interface GeneratorParams {
     minBranchShare: number;
     /** prior strength (matches) for branch win rates */
     shrinkMatches: number;
-    /** win-rate points (fraction) added per unit of style affinity, to break near-ties */
-    styleTilt: number;
+    /** win-rate points (fraction) added per unit of damage-scaling affinity, to break near-ties */
+    affinityTilt: number;
   };
 }
 
@@ -161,6 +159,7 @@ export const DEFAULT_PARAMS: GeneratorParams = {
   bulletShare: 0.6,
   powerRefPerK: 0.05,
   utilityUnit: 0.05,
+  weights: { aGun: 0.5, aSpirit: 0.5, aSurv: 0.6, aUtil: 0.3 },
 
   plan: [
     { phase: 'early', count: 4, minTier: 1, maxTier: 2, maxPerSlot: 2, maxUpgrades: 2 },
@@ -178,11 +177,6 @@ export const DEFAULT_PARAMS: GeneratorParams = {
   budgetShare: 0.9,
   stones: { minPickRate: 0.15, maxTier: 2, max: 5 },
   fallback: { minMatches: 40, minPickRate: 0.005, budgetSlack: 0.1 },
-  styles: [
-    { id: 'gun', aGun: 1.0, aSpirit: 0.25, aSurv: 0.35, aUtil: 0.3, slotBias: { weapon: 0.6, vitality: 0, spirit: -0.25 } },
-    { id: 'spirit', aGun: 0.25, aSpirit: 1.0, aSurv: 0.35, aUtil: 0.3, slotBias: { weapon: -0.25, vitality: 0, spirit: 0.6 } },
-    { id: 'hybrid', aGun: 0.6, aSpirit: 0.6, aSurv: 0.4, aUtil: 0.3, slotBias: { weapon: 0, vitality: 0, spirit: 0 } },
-  ],
 
-  ability: { minBranchShare: 0.2, shrinkMatches: 60, styleTilt: 0.01 },
+  ability: { minBranchShare: 0.2, shrinkMatches: 60, affinityTilt: 0.01 },
 };

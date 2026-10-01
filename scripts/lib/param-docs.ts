@@ -67,11 +67,13 @@ export function renderParamDocs(params: GeneratorParams = DEFAULT_PARAMS): strin
     if (!scalarRows.has(section)) scalarRows.set(section, []);
     scalarRows.get(section)!.push(`| \`${path}\` | ${fmt(value)} | ${cell(doc(docPath))} |`);
   };
-  const structured = new Set(['plan', 'phaseWeights', 'styles']);
+  const structured = new Set(['plan', 'phaseWeights']);
   for (const [key, value] of Object.entries(params)) {
     if (structured.has(key)) continue;
     if (key === 'phaseWindowS') {
       for (const [phase, win] of Object.entries(value as Record<string, number[]>)) addScalar(`phaseWindowS.${phase}`, win, 'GeneratorParams.phaseWindowS');
+    } else if (key === 'weights') {
+      for (const [k, v] of Object.entries(value as Record<string, number>)) addScalar(`weights.${k}`, v, `PowerWeights.${k}`);
     } else if (value && typeof value === 'object') {
       for (const [k, v] of Object.entries(value as Record<string, unknown>)) addScalar(`${key}.${k}`, v, `GeneratorParams.${key}.${k}`);
     } else {
@@ -100,17 +102,6 @@ export function renderParamDocs(params: GeneratorParams = DEFAULT_PARAMS): strin
   for (const step of params.plan) lines.push(`| ${planKeys.map((k) => (step as unknown as Record<string, unknown>)[k]).join(' | ')} |`);
   lines.push('');
   for (const k of planKeys.filter((x) => x !== 'phase')) lines.push(`- \`${k}\`: ${doc(`PhasePlanStep.${k}`)}`);
-  lines.push('');
-
-  // ---- build styles
-  const styleKeys = ['aGun', 'aSpirit', 'aSurv', 'aUtil'] as const;
-  const slots = Object.keys(params.styles[0].slotBias);
-  lines.push('**Build styles** (`styles`)', '', `| Style | ${styleKeys.map((k) => `\`${k}\``).join(' | ')} | ${slots.map((s) => `\`slotBias.${s}\``).join(' | ')} |`, `| --- |${[...styleKeys, ...slots].map(() => ' ---:').join(' |')} |`);
-  for (const s of params.styles) {
-    lines.push(`| ${s.id} | ${styleKeys.map((k) => s[k]).join(' | ')} | ${slots.map((sl) => s.slotBias[sl as keyof typeof s.slotBias]).join(' | ')} |`);
-  }
-  lines.push('');
-  for (const k of [...styleKeys, 'slotBias']) lines.push(`- \`${k}\`: ${doc(`StyleDef.${k}`)}`);
   lines.push('');
 
   return lines.join('\n').trimEnd();

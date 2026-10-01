@@ -5,7 +5,7 @@ function day(unix: number): string {
   return new Date(unix * 1000).toISOString().slice(0, 10);
 }
 
-export function Footer({ meta, buildSetHash }: { meta: MetaSnapshot; buildSetHash: string | null }) {
+export function Footer({ meta, buildHash }: { meta: MetaSnapshot; buildHash: string | null }) {
   const w = meta.analytics.window;
   const fetched = meta.fetchedAt.replace('T', ' ').replace(/\.\d+Z$/, ' UTC');
   const pw = DEFAULT_PARAMS.phaseWeights;
@@ -17,10 +17,10 @@ export function Footer({ meta, buildSetHash }: { meta: MetaSnapshot; buildSetHas
       </p>
       <p>
         Generator {GENERATOR_VERSION}
-        {buildSetHash ? `, build-set hash ${buildSetHash}` : ''}. The same snapshot always gives the same builds.
+        {buildHash ? `, build hash ${buildHash}` : ''}. The same snapshot always gives the same build.
       </p>
       <details>
-        <summary>How builds are scored</summary>
+        <summary>How the build is scored</summary>
         <ul className="bullets">
           <li>Win rate: shrunk win-rate lift against items bought at the same time.</li>
           <li>Usage: how often players of the hero buy the item.</li>

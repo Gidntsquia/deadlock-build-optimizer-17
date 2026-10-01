@@ -4,15 +4,15 @@ import type { BuildAgreement } from '../validation';
 
 const SLOTS: SlotType[] = ['weapon', 'vitality', 'spirit'];
 
-export function BuildSummary({ build, budget, agreement, sample }: { build: Build; budget: number; agreement: BuildAgreement | null; sample: number }) {
+export function BuildSummary({ build, agreement, sample }: { build: Build; agreement: BuildAgreement | null; sample: number }) {
   const total = SLOTS.reduce((s, k) => s + build.slotSpend[k], 0) || 1;
   return (
-    <section className="panel" data-testid="build-summary" aria-label={`${build.name} summary`}>
+    <section className="panel" data-testid="build-summary" aria-label="Build summary">
       <div className="panel-bar">
-        <h2>{build.name}</h2>
+        <h2>Recommended build</h2>
       </div>
       <div className="panel-body">
-        <p className="tagline">{build.tagline}</p>
+        <p className="tagline">Picked from what {build.heroName} players buy and win with, then scored by what each item adds per soul spent.</p>
         <div className="stats">
           <div className="stat">
             <div className="stat-v" data-testid="build-total">
@@ -43,7 +43,7 @@ export function BuildSummary({ build, budget, agreement, sample }: { build: Buil
           ))}
         </div>
         <p className="fine" style={{ marginTop: 8 }}>
-          Sized to fit a budget of {fmtSouls(budget)} souls (90% of the average final net worth of this hero in the data).
+          Sized to fit a budget of {fmtSouls(build.budget)} souls (90% of the average final net worth of this hero in the data).
         </p>
         {agreement && (
           <div className="agree-chip" data-testid="agreement-chip">

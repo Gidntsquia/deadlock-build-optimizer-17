@@ -1,5 +1,3 @@
-import type { StyleId } from '../types';
-
 /** One sampled match from the validation snapshot (catalog items only). */
 export interface ValidationMatch {
   match_id: number;
@@ -57,7 +55,6 @@ export interface ItemBadge {
 }
 
 export interface BuildAgreement {
-  buildId: StyleId;
   /** 0 to 100, rounded to one decimal */
   agreementPct: number;
   /** F1 of precision and recall between the build's items and the core set, 0 to 1 */
@@ -83,5 +80,5 @@ export interface ValidationReport {
   coreItemIds: number[];
   experimentCount: number;
   core: CoreSet;
-  builds: BuildAgreement[];
+  agreement: BuildAgreement;
 }

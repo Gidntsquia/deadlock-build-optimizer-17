@@ -12,7 +12,7 @@
 import type { SlotType } from '../types';
 import { addStats, emptyStats, type ItemModel, type Stats } from './itemModel';
 import { categoryBonus, levelAt, type KitProfile } from './kit';
-import type { GeneratorParams, StyleDef } from './params';
+import type { GeneratorParams, PowerWeights } from './params';
 import { clamp } from './util';
 
 export interface PowerState {
@@ -124,8 +124,8 @@ export function readPower(profile: KitProfile, st: PowerState, params: Generator
 }
 
 /** Weighted ln-power. Differences of this between two readings are "ln-power gained". */
-export function powerScore(r: PowerReading, style: StyleDef): number {
-  return style.aGun * Math.log(Math.max(r.gunDps, 1e-6)) + style.aSpirit * Math.log(1 + r.spiritDps) + style.aSurv * Math.log(r.ehp) + style.aUtil * r.utility;
+export function powerScore(r: PowerReading, w: PowerWeights): number {
+  return w.aGun * Math.log(Math.max(r.gunDps, 1e-6)) + w.aSpirit * Math.log(1 + r.spiritDps) + w.aSurv * Math.log(r.ehp) + w.aUtil * r.utility;
 }
 
 export interface PowerGain {
@@ -143,11 +143,11 @@ export interface PowerGain {
  * net worth so level growth cancels out. Stats, soul-investment thresholds and effects are added one after the
  * other so the total can be split into named parts.
  */
-export function gainFromChange(profile: KitProfile, owned: ItemModel[], add: ItemModel, remove: ItemModel[], style: StyleDef, params: GeneratorParams): PowerGain {
+export function gainFromChange(profile: KitProfile, owned: ItemModel[], add: ItemModel, remove: ItemModel[], params: GeneratorParams): PowerGain {
   const after = [...owned.filter((o) => !remove.includes(o)), add];
   const netWorth = after.reduce((sum, m) => sum + m.cost, 0) + params.unspentSouls;
   const read = (innate: ItemModel[], spend: ItemModel[], effects: ItemModel[]): number =>
-    powerScore(readPower(profile, composeState(innate, spend, effects), params, netWorth), style);
+    powerScore(readPower(profile, composeState(innate, spend, effects), params, netWorth), params.weights);
   const p0 = read(owned, owned, owned);
   const p1 = read(after, owned, owned);
   const p2 = read(after, after, owned);

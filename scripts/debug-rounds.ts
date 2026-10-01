@@ -1,16 +1,13 @@
-/** Developer aid: shows the best candidates of every selection round. `npx tsx scripts/debug-rounds.ts <heroId> <styleIndex>` */
+/** Developer aid: shows the best candidates of every selection round. `npx tsx scripts/debug-rounds.ts <heroId>` */
 import { loadHeroInputs, loadShared } from '../src/data/snapshots';
-import { generateBuilds } from '../src/generator';
-import { DEFAULT_PARAMS } from '../src/generator/params';
+import { generateBuild } from '../src/generator';
 import { nodeFetcher } from './lib/node-data';
 
 const id = Number(process.argv[2] ?? 1);
-const styleIdx = Number(process.argv[3] ?? 0);
 const shared = await loadShared(nodeFetcher);
 const inputs = await loadHeroInputs(nodeFetcher, shared, id);
-const style = DEFAULT_PARAMS.styles[styleIdx];
 let round = 0;
-generateBuilds(inputs, { styles: [style] }, ({ phase, chosen, candidates }) => {
+generateBuild(inputs, undefined, ({ phase, chosen, candidates }) => {
   round++;
   console.log(`\nround ${round} [${phase}] chose ${chosen.model.name} (${chosen.kind}) score ${chosen.score.toFixed(2)}`);
   const top = [...candidates].sort((a, b) => b.score - a.score).slice(0, 8);

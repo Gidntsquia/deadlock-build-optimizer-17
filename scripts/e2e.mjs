@@ -190,7 +190,6 @@ const inPage = {
     });
     return {
       hero: text(document.querySelector('[data-testid="hero-head"] h1')),
-      buildId: panel?.dataset.build ?? null,
       name: text(panel?.querySelector('[data-testid="build-summary"] h2')),
       total: text(panel?.querySelector('[data-testid="build-total"]')),
       agreement: text(panel?.querySelector('[data-testid="agreement-pct"]')),
@@ -298,7 +297,6 @@ const T = (id) => `[data-testid="${id}"]`;
 const heroReady = (page, name) =>
   page.waitForFunction((n) => document.querySelector('[data-testid="hero-head"] h1')?.textContent === n && !!document.querySelector('[data-testid="build-panel"] [data-testid="item-row"]'), name, { timeout: 30000 });
 const imagesReady = (page) => page.waitForFunction(() => [...document.images].filter((i) => i.loading !== 'lazy').every((i) => i.complete), null, { timeout: 15000 });
-const buildShown = (page, id) => page.waitForFunction((b) => document.querySelector('[data-testid="build-panel"]')?.dataset.build === b, id, { timeout: 15000 });
 
 async function pickHero(page, hero) {
   await page.locator(T('hero-button')).tap();
@@ -309,24 +307,13 @@ async function pickHero(page, hero) {
   await imagesReady(page);
 }
 
-/** Taps each build tab in turn and reads the build; `onBuild` runs while that build is on screen. */
-async function readAllBuilds(page, onBuild = null) {
-  const tabs = page.locator(T('build-tab'));
-  const n = await tabs.count();
-  const builds = [];
-  for (let i = 0; i < n; i++) {
-    const tab = tabs.nth(i);
-    const id = await tab.getAttribute('data-build');
-    await tab.tap();
-    await buildShown(page, id);
-    await imagesReady(page);
-    const b = await page.evaluate(inPage.readBuild);
-    b.tabText = (await tab.innerText()).replace(/\s+/g, ' ').trim();
-    builds.push(b);
-    if (onBuild) await onBuild(b, i);
-  }
-  return builds;
+/** Waits for the images, then reads the build on screen. */
+async function readCurrentBuild(page) {
+  await imagesReady(page);
+  return page.evaluate(inPage.readBuild);
 }
+
+const rowLocator = (page, i) => page.locator(`${T('build-panel')} ${T('item-row')}`).nth(i);
 
 function shapeErrors(b, minRows = 12) {
   const e = [];
@@ -608,58 +595,48 @@ async function main() {
     await imagesReady(page);
     check('the app renders (no load error)', (await page.locator(T('load-error')).count()) === 0 && (await page.locator(T('build-panel')).count()) === 1);
 
-    section('Criterion 3 — opens on Infernus, ≥2 named builds, grouped buy lists, running totals, shop images');
+    section('Criterion 3 — opens on Infernus with one build: grouped buy list, running totals, shop images');
     const firstHero = await page.locator(T('hero-name')).innerText();
     check('opens on Infernus', firstHero === 'Infernus', firstHero);
-    const builds = await readAllBuilds(page);
-    check('at least 2 builds, each with a distinct name', builds.length >= 2 && new Set(builds.map((b) => b.name)).size === builds.length && builds.every((b) => b.name), builds.map((b) => b.name).join(' | '));
-    for (const b of builds) {
-      const errs = shapeErrors(b);
-      check(`${b.name}: ${b.rows.length} purchases in early/mid/late, catalog costs, rising running totals, correct shop images`, errs.length === 0, few(errs));
-    }
-    check('each build shows its phases as headed groups (early, mid, late)', builds.every((b) => b.phases.join() === 'early,mid,late'));
-    check('phone tabs switch builds by tap and by arrow key', await (async () => {
-      const tabs = page.locator(T('build-tab'));
-      await tabs.nth(0).tap();
-      await tabs.nth(0).focus();
-      await page.keyboard.press('ArrowRight');
-      return (await tabs.nth(1).getAttribute('aria-selected')) === 'true' && (await tabs.nth(0).getAttribute('aria-selected')) === 'false';
-    })());
+    const build = await readCurrentBuild(page);
+    check('one named build and nothing to choose between (no tabs)', build.name === 'Recommended build' && (await page.locator(T('build-panel')).count()) === 1 && (await page.locator('[role="tab"], [role="tablist"]').count()) === 0, build.name);
+    const buildErrs = shapeErrors(build);
+    check(`${build.rows.length} purchases in early/mid/late, catalog costs, rising running totals, correct shop images`, buildErrs.length === 0, few(buildErrs));
+    check('the build shows its phases as headed groups (early, mid, late)', build.phases.join() === 'early,mid,late');
 
     // ---------------------------------------------------------------- criterion 5: abilities
     section('Criterion 5 — ability level-up sequence with the 4 real Infernus ability names');
     const kit1 = heroKit(INFERNUS);
     const names1 = kit1.abilities.filter((a) => /^signature[1-4]$/.test(a.slot)).map((a) => a.name);
     check('the snapshot kit has 4 real ability names', names1.length === 4 && names1.every((n) => n && !/^(signature|ability|citadel)/i.test(n)), names1.join(', '));
-    for (const b of builds) {
-      const r = abilityErrors(b, kit1);
-      check(`${b.name}: 16 points, unlock + upgrades 1-3 for ${names1.join(', ')}`, r.errors.length === 0, r.errors.length ? few(r.errors) : `unlock order ${r.unlockOrder.join(' → ')}`);
+    {
+      const r = abilityErrors(build, kit1);
+      check(`16 points, unlock + upgrades 1-3 for ${names1.join(', ')}`, r.errors.length === 0, r.errors.length ? few(r.errors) : `unlock order ${r.unlockOrder.join(' → ')}`);
     }
 
     // ---------------------------------------------------------------- criterion 7: badges and agreement
     section('Criterion 7 — Zergggy core / not-core badges and agreement %');
     const ref = referenceCore(zerg.matches);
     const coreCount = [...ref.items.values()].filter((i) => i.core).length;
-    for (const b of builds) {
+    {
       const errs = [];
-      for (const r of b.rows) {
+      for (const r of build.rows) {
         const w = ref.items.get(r.id);
         const status = w ? (w.core ? 'core' : 'experiment') : 'unseen';
         const text = `${status === 'core' ? 'Core' : 'Not core'} · ${w?.n ?? 0}/${ref.sample}`;
         if (!r.badge) errs.push(`${r.name}: no badge`);
         else if (r.badge.status !== status || r.badge.text !== text) errs.push(`${r.name}: badge "${r.badge.text}" (${r.badge.status}), expected "${text}" (${status})`);
       }
-      check(`${b.name}: every one of ${b.rows.length} purchases carries the right core / not-core badge`, errs.length === 0 && b.badgesShown === b.rows.length, few(errs));
-      const shown = Number.parseFloat(b.agreement);
-      const want = referenceAgreement(b.rows.map((r) => r.id), ref);
-      check(`${b.name}: agreement ${b.agreement} matches 0.7·overlap + 0.3·order computed independently (${want}%)`, Number.isFinite(shown) && shown >= 0 && shown <= 100 && Math.abs(shown - want) < 0.06);
-      check(`${b.name}: the tab shows its agreement`, /\d+% agreement/.test(b.tabText), b.tabText);
+      check(`every one of ${build.rows.length} purchases carries the right core / not-core badge`, errs.length === 0 && build.badgesShown === build.rows.length, few(errs));
+      const shown = Number.parseFloat(build.agreement);
+      const want = referenceAgreement(build.rows.map((r) => r.id), ref);
+      check(`agreement ${build.agreement} matches 0.7·overlap + 0.3·order computed independently (${want}%)`, Number.isFinite(shown) && shown >= 0 && shown <= 100 && Math.abs(shown - want) < 0.06);
     }
     const panel = page.locator(T('validation-panel'));
     const panelText = (await panel.innerText()).replace(/\s+/g, ' ');
     check('validation panel states the 30% rule, experiments and held-out use', /30%/.test(panelText) && /experiment/i.test(panelText) && /not a source/i.test(panelText));
     const rowPcts = await page.locator(T('agreement-pct-row')).allInnerTexts();
-    check('validation panel lists one agreement per build, equal to the build chips', rowPcts.length === builds.length && rowPcts.every((t, i) => t === builds[i].agreement), rowPcts.join(', '));
+    check('validation panel lists one agreement, equal to the one in the build summary', rowPcts.length === 1 && rowPcts[0] === build.agreement, rowPcts.join(', '));
     await page.locator(T('toggle-core')).tap();
     const coreRows = await page.locator(T('core-row')).evaluateAll((els) => els.map((e) => Number(e.dataset.itemId)));
     check(`"core items" list has ${coreCount} items, all core by the independent rule`, coreRows.length === coreCount && coreRows.every((id) => ref.items.get(id)?.core), `${coreRows.length} listed`);
@@ -671,24 +648,19 @@ async function main() {
     // ---------------------------------------------------------------- criterion 6: item cards
     section('Criterion 6 — item detail card matches the assets data');
     let rowCards = 0;
-    for (let bi = 0; bi < builds.length; bi++) {
-      await page.locator(T('build-tab')).nth(bi).tap();
-      await buildShown(page, builds[bi].buildId);
-      for (let i = 0; i < builds[bi].rows.length; i++) {
-        const r = builds[bi].rows[i];
-        const row = page.locator(`${T('build-panel')} ${T('item-row')}`).nth(i);
-        await row.tap();
-        await page.locator(T('item-sheet')).waitFor({ timeout: 5000 });
-        const w = ref.items.get(r.id);
-        const errs = await cardErrors(page, byId.get(r.id), { row: r, badge: w ? (w.core ? 'core' : 'experiment') : 'unseen' });
-        rowCards++;
-        if (errs.length) cards.failures.push(`${builds[bi].name} / ${r.name}: ${few(errs, 3)}`);
-        cards.verified.add(r.id);
-        await layoutPass(page, `item card: ${r.name}`, '[role="dialog"]');
-        await closeWithEscape(page);
-        const focused = await page.evaluate(() => document.activeElement?.dataset?.itemId ?? null);
-        if (focused !== String(r.id)) cards.failures.push(`${r.name}: focus did not return to the row after Escape (${focused})`);
-      }
+    for (let i = 0; i < build.rows.length; i++) {
+      const r = build.rows[i];
+      await rowLocator(page, i).tap();
+      await page.locator(T('item-sheet')).waitFor({ timeout: 5000 });
+      const w = ref.items.get(r.id);
+      const errs = await cardErrors(page, byId.get(r.id), { row: r, badge: w ? (w.core ? 'core' : 'experiment') : 'unseen' });
+      rowCards++;
+      if (errs.length) cards.failures.push(`${r.name}: ${few(errs, 3)}`);
+      cards.verified.add(r.id);
+      await layoutPass(page, `item card: ${r.name}`, '[role="dialog"]');
+      await closeWithEscape(page);
+      const focused = await page.evaluate(() => document.activeElement?.dataset?.itemId ?? null);
+      if (focused !== String(r.id)) cards.failures.push(`${r.name}: focus did not return to the row after Escape (${focused})`);
     }
     check(`tapping each of the ${rowCards} build rows opens a card with image, cost, tier, slot, stats and effect text equal to the catalog, and Escape returns focus`, cards.failures.length === 0, few(cards.failures));
 
@@ -713,16 +685,12 @@ async function main() {
     const failuresBeforeWalk = cards.failures.length;
     const verifiedBeforeWalk = cards.verified.size;
     const maxItems = Number(option('--max-items', 400));
-    for (let bi = 0; bi < builds.length; bi++) {
-      await page.locator(T('build-tab')).nth(bi).tap();
-      await buildShown(page, builds[bi].buildId);
-      for (let i = 0; i < builds[bi].rows.length; i++) {
-        await page.locator(`${T('build-panel')} ${T('item-row')}`).nth(i).tap();
-        await page.locator(T('item-sheet')).waitFor({ timeout: 5000 });
-        await walkLinks(page, builds[bi].rows[i].id, maxItems);
-        await page.keyboard.press('Escape');
-        await page.locator(T('item-sheet')).waitFor({ state: 'detached' });
-      }
+    for (let i = 0; i < build.rows.length; i++) {
+      await rowLocator(page, i).tap();
+      await page.locator(T('item-sheet')).waitFor({ timeout: 5000 });
+      await walkLinks(page, build.rows[i].id, maxItems);
+      await page.keyboard.press('Escape');
+      await page.locator(T('item-sheet')).waitFor({ state: 'detached' });
     }
     const linkOpened = cards.verified.size - verifiedBeforeWalk;
     const chipsSeen = [...cards.links.values()].reduce((s, l) => s + l.length, 0);
@@ -730,11 +698,7 @@ async function main() {
 
     // ---------------------------------------------------------------- criterion 9 (part): layout on the phone
     section('Criterion 9 — 390×844: no horizontal scrolling, every control ≥ 40px and tappable');
-    for (let bi = 0; bi < builds.length; bi++) {
-      await page.locator(T('build-tab')).nth(bi).tap();
-      await buildShown(page, builds[bi].buildId);
-      await layoutPass(page, `main screen, ${builds[bi].name}`);
-    }
+    await layoutPass(page, 'main screen, Infernus');
     // expand every <details> (ability upgrades, scoring table) and both validation lists
     await page.evaluate(() => document.querySelectorAll('details').forEach((d) => (d.open = true)));
     const coreToggle = page.locator(T('toggle-core'));
@@ -765,14 +729,10 @@ async function main() {
     const spot = [others[0], others[Math.floor(others.length / 2)], others[others.length - 1]];
     for (const h of spot) {
       await pickHero(page, h);
-      const hb = await readAllBuilds(page);
-      const errs = [];
-      hb.forEach((b) => {
-        errs.push(...shapeErrors(b).map((x) => `${b.name}: ${x}`));
-        errs.push(...abilityErrors(b, heroKit(h.id)).errors.map((x) => `${b.name}: ${x}`));
-        if (b.failed) errs.push(`${b.name}: error state shown`);
-      });
-      check(`picker → ${h.name}: ${hb.length} builds, buy lists and 16-point ability orders`, hb.length >= 2 && errs.length === 0, few(errs));
+      const hb = await readCurrentBuild(page);
+      const errs = [...shapeErrors(hb), ...abilityErrors(hb, heroKit(h.id)).errors];
+      if (hb.failed) errs.push('error state shown');
+      check(`picker → ${h.name}: one build with a ${hb.rows.length}-row buy list and a 16-point ability order`, errs.length === 0, few(errs));
       await layoutPass(page, `main screen, ${h.name}`);
     }
     const sweepHeroes = heroes.slice(0, Number(option('--heroes', heroes.length)));
@@ -784,26 +744,23 @@ async function main() {
     for (const h of sweepHeroes) {
       try {
         await pickHero(page, h);
-        const hb = await readAllBuilds(page, async (b) => {
-          for (let i = 0; i < b.rows.length; i++) {
-            if (cards.verified.has(b.rows[i].id)) continue;
-            await verifyRowCard(page, page.locator(`${T('build-panel')} ${T('item-row')}`).nth(i), b.rows[i], `${h.name} / ${b.name}`);
-          }
-        });
-        if (hb.length < 2) heroFailures.push(`${h.name}: ${hb.length} builds`);
-        hb.forEach((b) => {
-          buildsSeen++;
-          purchases += b.rows.length;
-          const errs = [...shapeErrors(b), ...abilityErrors(b, heroKit(h.id)).errors];
-          if (b.failed) errs.push('error state shown');
-          if (h.id !== INFERNUS && b.badgesShown !== 0) errs.push('core badges shown without validation data');
-          if (errs.length) heroFailures.push(`${h.name} / ${b.name}: ${few(errs, 3)}`);
-        });
+        const b = await readCurrentBuild(page);
+        for (let i = 0; i < b.rows.length; i++) {
+          if (cards.verified.has(b.rows[i].id)) continue;
+          await verifyRowCard(page, rowLocator(page, i), b.rows[i], h.name);
+        }
+        buildsSeen++;
+        purchases += b.rows.length;
+        const errs = [...shapeErrors(b), ...abilityErrors(b, heroKit(h.id)).errors];
+        if (b.failed) errs.push('error state shown');
+        if ((await page.locator(T('build-panel')).count()) !== 1 || (await page.locator('[role="tab"]').count()) !== 0) errs.push('more than one build or tabs shown');
+        if (h.id !== INFERNUS && b.badgesShown !== 0) errs.push('core badges shown without validation data');
+        if (errs.length) heroFailures.push(`${h.name}: ${few(errs, 3)}`);
       } catch (err) {
         heroFailures.push(`${h.name}: ${String(err.message).split('\n')[0]}`);
       }
     }
-    check(`all ${sweepHeroes.length} active heroes: ${buildsSeen} builds, ${purchases} purchases render with images, totals and 16 ability points`, heroFailures.length === 0, few(heroFailures));
+    check(`all ${sweepHeroes.length} active heroes show one build each: ${buildsSeen} builds, ${purchases} purchases render with images, totals and 16 ability points`, heroFailures.length === 0 && buildsSeen === sweepHeroes.length, few(heroFailures));
     const shopable = catalog.filter((i) => i.shopable && !i.disabled);
     const reached = shopable.filter((i) => cards.verified.has(i.id)).length;
     section('Criterion 6 — item cards across every hero');
@@ -827,9 +784,9 @@ async function main() {
     await page.reload();
     await heroReady(page, 'Infernus');
     await imagesReady(page);
-    const again = await readAllBuilds(page);
-    const sig = (bs) => JSON.stringify(bs.map((b) => [b.name, b.rows.map((r) => [r.id, r.cost, r.running, r.phase]), b.steps.map((s) => [s.ability, s.tier]), b.agreement]));
-    check('reloading gives identical builds, ability orders and agreement numbers', sig(again) === sig(builds));
+    const again = await readCurrentBuild(page);
+    const sig = (b) => JSON.stringify([b.name, b.rows.map((r) => [r.id, r.cost, r.running, r.phase]), b.steps.map((s) => [s.ability, s.tier]), b.agreement]);
+    check('reloading gives an identical build, ability order and agreement number', sig(again) === sig(build));
 
     // ---------------------------------------------------------------- load failure screen
     section('Failure handling — missing snapshot shows a readable message, not a blank page');

@@ -62,7 +62,6 @@ export function scoreBuild(build: Build, core: CoreSet): BuildAgreement {
   const pct = concordance === null ? overlap * 100 : (OVERLAP_WEIGHT * overlap + ORDER_WEIGHT * concordance) * 100;
 
   return {
-    buildId: build.id,
     agreementPct: Math.round(pct * 10) / 10,
     overlap,
     precision,

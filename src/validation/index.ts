@@ -3,7 +3,7 @@
  * (public/data/zergggy/purchases-infernus.json). The generator never imports from here.
  */
 import type { JsonFetcher } from '../data/snapshots';
-import type { BuildSet } from '../types';
+import type { Build } from '../types';
 import { ORDER_WEIGHT, OVERLAP_WEIGHT, scoreBuild } from './agreement';
 import { computeCoreSet } from './core';
 import type { ValidationReport, ValidationSnapshot } from './types';
@@ -17,8 +17,8 @@ export async function loadValidationSnapshot(f: JsonFetcher): Promise<Validation
   return (await f(VALIDATION_FILE)) as ValidationSnapshot;
 }
 
-/** Scores every build of a set against the core set computed from the validation snapshot. */
-export function validateBuildSet(set: BuildSet, snapshot: ValidationSnapshot): ValidationReport {
+/** Scores the build against the core set computed from the validation snapshot. */
+export function validateBuild(build: Build, snapshot: ValidationSnapshot): ValidationReport {
   const core = computeCoreSet(snapshot.matches);
   return {
     matches: core.matches,
@@ -30,6 +30,6 @@ export function validateBuildSet(set: BuildSet, snapshot: ValidationSnapshot): V
     coreItemIds: core.core.map((u) => u.itemId),
     experimentCount: core.experiments.length,
     core,
-    builds: set.builds.map((b) => scoreBuild(b, core)),
+    agreement: scoreBuild(build, core),
   };
 }

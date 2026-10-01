@@ -1,14 +1,14 @@
 /**
- * Prints generated builds for one or more heroes and a determinism hash.
+ * Prints the generated build for one or more heroes and a determinism hash.
  *   npm run generate                 -> Infernus
  *   npm run generate -- 2 5 --json   -> other hero ids, JSON output
  *   npm run generate -- --all        -> every hero, one summary line each
  * Reads only the aggregate analytics and assets snapshots.
  */
 import { loadHeroInputs, loadShared } from '../src/data/snapshots';
-import { DEFAULT_PARAMS, generateBuilds, hashBuildSet } from '../src/generator';
+import { DEFAULT_PARAMS, generateBuild, hashBuild } from '../src/generator';
 import { hashString, stableStringify } from '../src/generator/util';
-import type { Build, BuildSet } from '../src/types';
+import type { Build } from '../src/types';
 import { nodeFetcher } from './lib/node-data';
 
 const args = process.argv.slice(2);
@@ -17,7 +17,6 @@ const all = args.includes('--all');
 const ids = args.filter((a) => /^\d+$/.test(a)).map(Number);
 
 function printBuild(b: Build): void {
-  console.log(`\n== ${b.name} — ${b.tagline}`);
   let phase = '';
   for (const it of b.items) {
     if (it.phase !== phase) {
@@ -42,20 +41,19 @@ async function main(): Promise<void> {
   for (const id of targets) {
     try {
       const inputs = await loadHeroInputs(nodeFetcher, shared, id);
-      const a: BuildSet = generateBuilds(inputs);
-      const b: BuildSet = generateBuilds(inputs);
-      const hash = hashBuildSet(a);
-      const same = hash === hashBuildSet(b) && JSON.stringify(a) === JSON.stringify(b);
+      const a: Build = generateBuild(inputs);
+      const b: Build = generateBuild(inputs);
+      const hash = hashBuild(a);
+      const same = hash === hashBuild(b) && JSON.stringify(a) === JSON.stringify(b);
       if (asJson) console.log(JSON.stringify(a, null, 2));
       else if (all) {
-        const counts = a.builds.map((x) => `${x.name}:${x.finalItemIds.length}/${x.items.length}`).join(', ');
-        const short = a.builds.some((x) => x.finalItemIds.length < 12 || x.abilityPlan.points.length < 16);
-        console.log(`${String(id).padStart(3)} ${a.heroName.padEnd(16)} finals/purchases ${counts}  hash ${hash}  deterministic=${same}${short ? '  SHORT' : ''}`);
+        const short = a.finalItemIds.length < 12 || a.abilityPlan.points.length < 16;
+        console.log(`${String(id).padStart(3)} ${a.heroName.padEnd(16)} finals/purchases ${a.finalItemIds.length}/${a.items.length}  hash ${hash}  deterministic=${same}${short ? '  SHORT' : ''}`);
         if (short) failures++;
       } else {
         console.log(`# ${a.heroName} (hero ${a.heroId}) — ${a.heroMatches} matches, win ${(a.heroWinRate * 100).toFixed(1)}%, budget ${a.budget} souls, generator ${a.generatorVersion}`);
-        for (const x of a.builds) printBuild(x);
-        console.log(`\nparams hash ${hashString(stableStringify(DEFAULT_PARAMS))}  build-set hash ${hash}  deterministic=${same}`);
+        printBuild(a);
+        console.log(`\nparams hash ${hashString(stableStringify(DEFAULT_PARAMS))}  build hash ${hash}  deterministic=${same}`);
       }
       if (!same) failures++;
     } catch (e) {

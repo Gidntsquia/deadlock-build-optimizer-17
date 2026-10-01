@@ -10,7 +10,7 @@
  */
 import type { AbilityOrderSnapshot, AbilityPlan, AbilityPoint, HeroKit } from '../types';
 import type { KitProfile } from './kit';
-import type { GeneratorParams, StyleDef } from './params';
+import type { GeneratorParams } from './params';
 
 interface Row {
   seq: string;
@@ -22,7 +22,7 @@ function digit(c: string): number {
   return parseInt(c, 36);
 }
 
-export function planAbilities(snapshot: AbilityOrderSnapshot, kit: HeroKit, profile: KitProfile, style: StyleDef, params: GeneratorParams): AbilityPlan {
+export function planAbilities(snapshot: AbilityOrderSnapshot, kit: HeroKit, profile: KitProfile, params: GeneratorParams): AbilityPlan {
   const ids = snapshot.abilityIds ?? [];
   const nameOf = new Map<number, string>(kit.abilities.map((a) => [a.id, a.name]));
   const all: Row[] = (snapshot.rows ?? [])
@@ -47,7 +47,7 @@ export function planAbilities(snapshot: AbilityOrderSnapshot, kit: HeroKit, prof
   }
   const rows = all.filter((r) => r.seq.length >= target);
 
-  // style affinity per ability index, only used to break near-ties
+  // damage-scaling affinity per ability index, only used to break near-ties
   const scaleSum = (idx: number): number => {
     const a = profile.abilities.find((x) => x.id === ids[idx]);
     return a ? a.damage.reduce((s, d) => s + d.scale, 0) : 0;
@@ -57,7 +57,7 @@ export function planAbilities(snapshot: AbilityOrderSnapshot, kit: HeroKit, prof
   const affinity = (idx: number): number => {
     const a = profile.abilities.find((x) => x.id === ids[idx]);
     if (!a) return 0;
-    return style.aSpirit * (scaleSum(idx) / totalScale) + style.aGun * (a.buildUpPerHit != null ? 1 / coupled : 0);
+    return params.weights.aSpirit * (scaleSum(idx) / totalScale) + params.weights.aGun * (a.buildUpPerHit != null ? 1 / coupled : 0);
   };
 
   let prefix = '';
@@ -84,7 +84,7 @@ export function planAbilities(snapshot: AbilityOrderSnapshot, kit: HeroKit, prof
       if (!widest || e.n > widest.n) widest = { c, n: e.n };
       if (e.n < params.ability.minBranchShare * prefixN) continue;
       const shrunk = (e.wins + params.ability.shrinkMatches * prefixWr) / (e.n + params.ability.shrinkMatches);
-      const score = shrunk + params.ability.styleTilt * affinity(digit(c));
+      const score = shrunk + params.ability.affinityTilt * affinity(digit(c));
       if (!best || score > best.score + 1e-12 || (Math.abs(score - best.score) <= 1e-12 && e.n > best.n)) best = { c, score, n: e.n };
     }
     prefix += (best ?? widest!).c;

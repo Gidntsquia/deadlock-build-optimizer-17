@@ -2,7 +2,6 @@
 
 export type SlotType = 'weapon' | 'vitality' | 'spirit';
 export type PhaseId = 'early' | 'mid' | 'late';
-export type StyleId = 'gun' | 'spirit' | 'hybrid';
 
 // ------------------------------------------------------------------ catalog
 
@@ -291,17 +290,6 @@ export interface AbilityPlan {
   };
 }
 
-export interface Build {
-  id: StyleId;
-  name: string;
-  tagline: string;
-  items: BuildItem[];
-  totalCost: number;
-  finalItemIds: number[];
-  slotSpend: Record<SlotType, number>;
-  abilityPlan: AbilityPlan;
-}
-
 export interface KitSummary {
   spiritDependence: number;
   dot: boolean;
@@ -313,11 +301,16 @@ export interface KitSummary {
   growth: { techPowerPerLevel: number; bulletDamagePerLevel: number; healthPerLevel: number };
 }
 
-export interface BuildSet {
+/** The generator's output for one hero: one build (buy list and ability order) and the context it was made from. */
+export interface Build {
   generatorVersion: string;
   heroId: number;
   heroName: string;
-  builds: Build[];
+  items: BuildItem[];
+  totalCost: number;
+  finalItemIds: number[];
+  slotSpend: Record<SlotType, number>;
+  abilityPlan: AbilityPlan;
   budget: number;
   heroMatches: number;
   heroWinRate: number;
